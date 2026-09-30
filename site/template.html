@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>APFN League Hub</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Permanent+Marker&display=swap">
 <style>
 /* Layout: scoreboard header, three tabs, dense ranked tables; summary tiles sit above the detail. */
 :root {
@@ -142,20 +142,153 @@ details.season > summary { cursor: pointer; padding: 10px 14px; font-weight: 600
 details.season > div { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px; }
 tr.cut16 td { border-bottom: 2px dotted var(--fg3); }
 .gotw { background: var(--loot-soft); }
+/* ---- World Touchdown War banner: night stadium, league crest, ribbon, nameplates ---- */
+.hero { --crest-green: #43b649; --crest-blue: #0b78bd; --crest-lime: #e4e61c; --gold-1: #f3dfa2; --gold-2: #c99a45; --bronze-1: #7a4a1f; --bronze-2: #d79a55;
+  position: relative; overflow: hidden; color: #fff; background: #050b14; isolation: isolate;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 16px 0; }
+.hero .sky { position: absolute; inset: 0; z-index: -2;
+  background: radial-gradient(120% 70% at 50% 0%, #123a66 0%, #0a1f38 45%, #050b14 80%); }
+.hero .lights { position: absolute; top: 18px; width: min(34%, 420px); height: 120px; z-index: -1; opacity: .95;
+  background-image: radial-gradient(circle, #fff 0 5px, rgba(190, 225, 255, .55) 6px, transparent 13px);
+  background-size: 30px 30px; filter: drop-shadow(0 0 18px rgba(170, 210, 255, .8)); }
+.hero .lights.l { left: 2%; } .hero .lights.r { right: 2%; }
+.hero .glow { position: absolute; top: -40px; width: 55%; height: 260px; z-index: -1;
+  background: radial-gradient(closest-side, rgba(150, 200, 255, .35), transparent); }
+.hero .glow.l { left: -8%; } .hero .glow.r { right: -8%; }
+.hero .turf { position: relative; width: 100%; height: 74px; margin-top: 6px; perspective: 260px; }
+.hero .turf::before { content: ""; position: absolute; left: -30%; right: -30%; bottom: 0; height: 210px; transform: rotateX(58deg); transform-origin: bottom;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 3px), rgba(255, 255, 255, .85) calc(10% - 3px) 10%),
+              repeating-linear-gradient(90deg, #3f9a35 0 10%, #358a2c 10% 20%); }
+.hero .turf::after { content: ""; position: absolute; inset: 0; background: linear-gradient(#050b14 0%, rgba(5, 11, 20, 0) 45%); }
+.hero .crest { width: clamp(170px, 30vw, 250px); height: auto; filter: drop-shadow(0 10px 24px rgba(0, 0, 0, .55)); }
+.hero .ribbon { position: relative; margin-top: -30px; padding: 6px 42px 8px; font: 400 clamp(20px, 3.4vw, 30px)/1 "Archivo Black", var(--display);
+  letter-spacing: .08em; color: #fff; text-transform: uppercase;
+  -webkit-text-stroke: 1.5px #1a1206; paint-order: stroke fill; text-shadow: 0 2px 0 #1a1206;
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2) 55%, #a57a30);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 50%, 100% 100%, 0 100%, 16px 50%); box-shadow: 0 6px 14px rgba(0, 0, 0, .45); }
+.hero .kicker { font: 600 15px var(--display); letter-spacing: .22em; text-transform: uppercase; color: #cfe3f7; text-align: center; }
+.hero .headline { font: 400 clamp(22px, 4.2vw, 40px)/1 "Archivo Black", var(--display); letter-spacing: .04em; text-transform: uppercase; text-align: center; }
+.hero .matchup { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px 16px; margin-top: 4px; position: relative; z-index: 1; }
+.plate { position: relative; min-width: min(240px, 38vw); max-width: 44vw; padding: 10px 26px; border-radius: 3px; text-align: center;
+  background: linear-gradient(180deg, var(--bronze-2), #b27436 45%, var(--bronze-1)); box-shadow: inset 0 0 0 2px rgba(255, 220, 170, .55), inset 0 0 0 5px rgba(60, 30, 5, .35), 0 6px 14px rgba(0, 0, 0, .5); }
+.plate::before, .plate::after { content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff3d6, #8c5a24); }
+.plate::before { left: 9px; } .plate::after { right: 9px; }
+.plate b { display: block; font: 400 clamp(15px, 2.4vw, 24px)/1.1 "Archivo Black", var(--display); color: #1b1008; text-transform: uppercase; overflow-wrap: anywhere;
+  text-shadow: 0 1px 0 rgba(255, 230, 190, .6); }
+.plate span { display: block; font: 600 12px var(--display); letter-spacing: .12em; text-transform: uppercase; color: #3a220c; margin-top: 3px; }
+.hero .vs { font: 400 clamp(18px, 3vw, 28px) "Archivo Black", var(--display); color: #fff; -webkit-text-stroke: 1px #000; paint-order: stroke fill; }
+.hero .status { font: 500 13px var(--body); color: #b9cadb; text-align: center; margin-top: 6px; position: relative; z-index: 1; }
+@media (max-width: 560px) { .hero .lights { width: 40%; height: 80px; background-size: 24px 24px; } .hero .matchup { flex-direction: column; gap: 6px; } .plate { min-width: 70vw; max-width: 86vw; } }
+
+/* Section headers in the league's style */
+.banner-ribbon { align-self: flex-start; font: 400 20px/1 "Archivo Black", var(--display); letter-spacing: .08em; text-transform: uppercase; color: #fff;
+  -webkit-text-stroke: 1.2px #1a1206; paint-order: stroke fill; padding: 6px 30px 7px;
+  background: linear-gradient(180deg, #f3dfa2, #c99a45 55%, #a57a30); clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%, 12px 50%); }
+.tape-label { align-self: flex-start; position: relative; font: 400 22px/1 "Permanent Marker", var(--display); color: #1d1d1d; padding: 12px 22px 10px;
+  background: #f1f1ee; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); transform: rotate(-1.2deg); margin-top: 8px;
+  clip-path: polygon(0 0, 100% 0, 100% 86%, 96% 100%, 90% 88%, 82% 100%, 74% 90%, 66% 100%, 57% 89%, 48% 100%, 40% 90%, 31% 100%, 22% 88%, 13% 100%, 5% 90%, 0 97%); }
+.tape-label::before { content: ""; position: absolute; top: -6px; left: 50%; width: 64px; height: 16px; margin-left: -32px; background: rgba(176, 150, 106, .85); transform: rotate(2deg); }
 footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
 a.jump:hover { background: var(--accent-soft); }
 </style>
 </head>
 <body>
+<header class="hero" aria-label="World Touchdown War">
+  <div class="sky"></div><div class="glow l"></div><div class="glow r"></div>
+  <div class="lights l" aria-hidden="true"></div><div class="lights r" aria-hidden="true"></div>
+  <svg class="crest" viewBox="0 0 300 336" role="img" aria-labelledby="crest-title">
+    <title id="crest-title">World Touchdown War crest</title>
+    <defs>
+      <linearGradient id="crest-fill" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0.40" stop-color="#43b649"/><stop offset="0.60" stop-color="#0b78bd"/>
+      </linearGradient>
+      <filter id="crest-glow" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>
+        <feFlood flood-color="#f2f31f"/><feComposite in2="b" operator="in" result="g"/>
+        <feMerge><feMergeNode in="g"/><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <path d="M18 34 Q86 40 150 8 Q214 40 282 34 L282 176 Q282 282 150 330 Q18 282 18 176 Z" fill="#e4e61c"/>
+    <path d="M30 44 Q92 48 150 21 Q208 48 270 44 L270 176 Q270 272 150 316 Q30 272 30 176 Z" fill="#fff"/>
+    <path d="M36 49 Q95 53 150 27 Q205 53 264 49 L264 176 Q264 268 150 310 Q36 268 36 176 Z" fill="url(#crest-fill)"/>
+    <g fill="#fff" font-family="'Archivo Black', 'Arial Black', sans-serif" text-anchor="middle">
+      <text x="150" y="106" font-size="46" textLength="206" lengthAdjust="spacingAndGlyphs">WORLD</text>
+      <text x="150" y="142" font-size="27" textLength="206" lengthAdjust="spacingAndGlyphs">TOUCHDOWN</text>
+      <text x="150" y="204" font-size="66" textLength="206" lengthAdjust="spacingAndGlyphs">WAR</text>
+      <text id="crest-season" x="150" y="262" font-size="46" filter="url(#crest-glow)" stroke="#d9dc10" stroke-width="1">XIII</text>
+    </g>
+    <defs>
+      <g id="m-grizzly" stroke="#111" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M34,70 C22,34 52,16 78,36 C66,46 52,58 34,70 Z" fill="#6a3e21"/>
+        <path d="M166,70 C178,34 148,16 122,36 C134,46 148,58 166,70 Z" fill="#6a3e21"/>
+        <path d="M42,58 C38,40 52,32 64,40 C56,46 48,52 42,58 Z" fill="#c98a5a" stroke="none"/>
+        <path d="M158,58 C162,40 148,32 136,40 C144,46 152,52 158,58 Z" fill="#c98a5a" stroke="none"/>
+          <path d="M100,30 C140,30 164,50 170,84 L186,98 L170,104 L182,122 L162,126 C154,156 130,178 100,180 C70,178 46,156 38,126 L18,122 L30,104 L14,98 L30,84 C36,50 60,30 100,30 Z" fill="#7b4a2b"/>
+          <path d="M170,104 L182,122 L162,126 C154,156 130,178 100,180 L104,166 C132,160 150,138 150,112 Z" fill="#5a331b" stroke="none"/>
+        <path d="M72,44 C90,36 114,36 130,44 C118,46 104,52 100,60 C94,52 84,46 72,44 Z" fill="#9a6238" stroke="none"/>
+        <path d="M88,40 L94,54 M112,40 L106,54 M100,36 L100,50" fill="none" stroke="#4a2a14" stroke-width="4"/>
+          <path d="M44,74 L94,90 L92,100 L42,86 Z" fill="#2e1a0c"/>
+        <path d="M156,74 L106,90 L108,100 L158,86 Z" fill="#2e1a0c"/>
+          <path d="M52,92 L90,102 C86,112 74,116 64,112 C56,108 52,100 52,92 Z" fill="#fff"/>
+        <path d="M148,92 L110,102 C114,112 126,116 136,112 C144,108 148,100 148,92 Z" fill="#fff"/>
+        <circle cx="76" cy="104" r="6.5" fill="#f2b705" stroke-width="3"/><circle cx="124" cy="104" r="6.5" fill="#f2b705" stroke-width="3"/>
+        <circle cx="77" cy="104" r="2.8" fill="#111" stroke="none"/><circle cx="123" cy="104" r="2.8" fill="#111" stroke="none"/>
+          <path d="M100,112 C130,112 148,128 148,148 C148,168 126,178 100,178 C74,178 52,168 52,148 C52,128 70,112 100,112 Z" fill="#d9a774"/>
+        <path d="M60,160 C70,172 86,178 100,178 C114,178 130,172 140,160 C128,168 114,170 100,170 C86,170 72,168 60,160 Z" fill="#b9854f" stroke="none"/>
+          <path d="M74,146 Q100,136 126,146 Q122,170 100,172 Q78,170 74,146 Z" fill="#7a1010"/>
+        <path d="M80,146 L86,160 L92,143 Z M108,143 L114,160 L120,146 Z" fill="#fff" stroke-width="2.5"/>
+        <path d="M88,166 L94,158 L100,166 L106,158 L112,166" fill="none" stroke="#fff" stroke-width="2.5"/>
+          <path d="M82,120 C82,110 118,110 118,120 C118,132 106,140 100,140 C94,140 82,132 82,120 Z" fill="#1a1a1a"/>
+        <ellipse cx="93" cy="118" rx="6" ry="3" fill="#6d6d6d" stroke="none"/>
+      </g>
+      
+      <g id="m-armadillo" stroke="#111" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M6,198 C2,132 40,98 96,98 L118,198 Z" fill="#8a6751"/>
+        <path d="M16,198 C14,146 40,116 86,108" fill="none" stroke="#b8977d" stroke-width="8"/>
+        <path d="M16,198 C14,146 40,116 86,108" fill="none" stroke="#4e3a2d" stroke-width="3" transform="translate(6 4)"/>
+        <path d="M42,198 C42,158 62,130 98,122" fill="none" stroke="#b8977d" stroke-width="8"/>
+        <path d="M42,198 C42,158 62,130 98,122" fill="none" stroke="#4e3a2d" stroke-width="3" transform="translate(6 4)"/>
+        <path d="M70,198 C72,168 86,146 106,138" fill="none" stroke="#b8977d" stroke-width="8"/>
+        <path d="M70,198 C72,168 86,146 106,138" fill="none" stroke="#4e3a2d" stroke-width="3" transform="translate(6 4)"/>
+        <g fill="#5f4637" stroke="none">
+          <circle cx="30" cy="160" r="3"/><circle cx="40" cy="138" r="3"/><circle cx="58" cy="124" r="3"/>
+          <circle cx="58" cy="176" r="3"/><circle cx="66" cy="152" r="3"/><circle cx="82" cy="136" r="3"/>
+          <circle cx="90" cy="178" r="3"/><circle cx="96" cy="158" r="3"/>
+        </g>
+        <path d="M6,198 C2,132 40,98 96,98 L118,198 Z" fill="none"/>
+          <path d="M64,84 C46,70 44,46 60,44 C72,50 80,64 80,78 Z" fill="#b8835b"/>
+        <path d="M64,72 C56,62 56,52 62,52 C68,56 72,64 72,72 Z" fill="#e7b993" stroke="none"/>
+        <path d="M84,72 C74,52 78,34 92,36 C100,44 102,58 98,70 Z" fill="#b8835b"/>
+        <path d="M86,62 C82,50 84,42 90,44 C94,50 94,58 92,64 Z" fill="#e7b993" stroke="none"/>
+          <path d="M58,88 C72,62 118,56 146,74 L184,92 C198,98 198,114 184,116 L150,124 C132,148 90,152 68,132 C54,118 50,100 58,88 Z" fill="#c99b78"/>
+        <path d="M68,132 C90,152 132,148 150,124 L184,116 C170,126 150,132 132,138 C112,146 88,146 68,132 Z" fill="#a37656" stroke="none"/>
+          <path d="M62,86 C74,62 118,54 148,72 L186,92 C176,96 162,94 150,90 C128,78 98,76 76,96 Z" fill="#8a6751"/>
+        <g fill="none" stroke="#4e3a2d" stroke-width="3">
+          <path d="M84,76 q6,-6 12,0 M100,72 q6,-6 12,0 M116,72 q6,-6 12,0 M132,76 q6,-6 12,0 M148,82 q6,-6 12,0 M164,88 q5,-5 10,0"/>
+          <path d="M92,84 q6,-6 12,0 M108,80 q6,-6 12,0 M124,82 q6,-6 12,0 M140,86 q6,-6 12,0"/>
+        </g>
+          <ellipse cx="190" cy="102" rx="7" ry="6.5" fill="#1a1a1a"/>
+          <path d="M100,94 L144,98 L142,107 L98,104 Z" fill="#3e2c21"/>
+        <path d="M106,106 L142,109 C138,119 126,123 116,119 C110,115 106,111 106,106 Z" fill="#fff"/>
+        <circle cx="125" cy="112" r="5.5" fill="#f2b705" stroke-width="3"/>
+        <circle cx="126" cy="112" r="2.4" fill="#111" stroke="none"/>
+          <path d="M140,126 Q162,122 182,116" fill="none" stroke-width="5"/>
+        <path d="M150,124 L154,137 L160,123 Z" fill="#fff" stroke-width="2.5"/>
+          <path d="M74,104 C80,96 92,94 98,98 C90,102 82,108 78,116 Z" fill="#e2b894" stroke="none"/>
+      </g>
+    </defs>
+    <use href="#m-armadillo" transform="translate(55 212) scale(.26)"><title>Armadillo Conference</title></use>
+    <use href="#m-grizzly" transform="translate(194 212) scale(.26)"><title>Grizzly Conference</title></use>
+  </svg>
+  <div class="ribbon" id="hero-ribbon">Season XIII</div>
+  <div class="kicker" id="hero-kicker"></div>
+  <div class="matchup" id="hero-matchup"></div>
+  <div class="status" id="hero-status"></div>
+  <div class="turf" aria-hidden="true"></div>
+</header>
 <div class="wrap">
-  <header class="top">
-    <div>
-      <div class="eyebrow" id="eyebrow"></div>
-      <h1>APFN League Hub</h1>
-    </div>
-    <div class="meta" id="meta"></div>
-  </header>
 
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" id="tab-recap" data-tab="recap">Recap</button>
@@ -269,7 +402,7 @@ function leagueBlock() {
     <tbody>${L.table.map(t => `<tr class="${t.rank === 8 ? "cut" : t.rank === 16 ? "cut16" : ""}"><td class="rank">${t.rank}</td><td>${team(t.key)}</td><td><span class="chip">${esc(T[t.key].conf)}</span></td><td>${rec(t)}</td><td class="r">${f1(t.pf)}</td><td>${rec(t.conf_record)}</td></tr>`).join("")}</tbody></table></div>`;
   const G = L.league_games;
   const games = G.games.length ? `<div class="block"><h3>League games, week ${G.week}</h3><div class="list"><ul class="plain">${G.games.map((g, i) => `<li class="${i === 0 ? "gotw" : ""}"><div>${i === 0 ? '<span class="chip loot">Game of the week</span><br>' : ""}<b>#${g.a_rank} ${esc(T[g.a].team)}</b> v <b>#${g.b_rank} ${esc(T[g.b].team)}</b><br><span class="vs">${esc(T[g.a].manager)} v ${esc(T[g.b].manager)}</span></div><div class="vs num">${g.a_rank + g.b_rank}</div></li>`).join("")}</ul></div></div>` : "";
-  const brackets = L.title.length ? `<div class="block"><h3>League championship</h3>${bracketView(L.title, who)}</div><div class="block"><h3>Consolation bracket</h3>${bracketView(L.consolation, who)}</div>` : "";
+  const brackets = L.title.length ? `<div class="block"><div class="banner-ribbon">Playoffs</div>${bracketView(L.title, who)}</div><div class="block"><div class="tape-label">Consolation</div>${bracketView(L.consolation, who)}</div>` : "";
   const champ = L.champion ? `<div class="tile"><span class="k">${D.season} league champion</span><span class="v">${esc(T[L.champion].team)}</span><span class="s">${esc(T[L.champion].manager)}</span></div>` : "";
   return `<div class="block"><h2>League table</h2>${champ}
     <p class="note">All 20 teams together, by wins then points for${L.has_schedule ? ", counting the cross-conference league games from week 5" : ""}. After week 14 the top 8 (above the dashed line) play for the league title and 9–16 (above the dotted line) play the consolation bracket, in weeks 15–17.${L.provisional ? " Seeds are as things stand." : ""}</p>
@@ -279,7 +412,7 @@ function pastTournaments() {
   const R = D.records, who = id => esc(R.names[id] || "Vacant team");
   return `<div class="block"><h2>League tournaments</h2><p class="note">The top 8 in the combined table after week 14 play for the league title; 9–16 play the consolation bracket. Brackets are rebuilt from Sleeper scores, and the champion matches the commissioner's list every year. 2024 uses the commissioner's own published seeding.</p>
     ${R.tournaments.map(t => `<details class="season"><summary>${t.season} · champion ${who(t.champion)}</summary><div>
-      <h3>League championship</h3>${bracketView(t.title, who)}<h3>Consolation</h3>${bracketView(t.consolation, who)}
+      <div class="banner-ribbon">Playoffs</div>${bracketView(t.title, who)}<div class="tape-label">Consolation</div>${bracketView(t.consolation, who)}
       <p class="vs">${t.official_seeds ? "Seeded from the commissioner's published table." : "Seeds rebuilt from Sleeper records: wins, then points for, through week 14."}</p></div></details>`).join("")}</div>`;
 }
 
@@ -436,6 +569,38 @@ document.getElementById("pin-form").addEventListener("submit", async e => {
 });
 document.getElementById("pin-cancel").addEventListener("click", () => document.getElementById("pin-dialog").close());
 
+// ---- banner ------------------------------------------------------------------------------------
+function roman(n) { return [[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]].reduce((s, [v, r]) => { while (n >= v) { s += r; n -= v; } return s; }, ""); }
+function renderHero() {
+  const seasonNo = Number(D.season) - 2013, L = D.league, week = D.week_now;
+  const rank = Object.fromEntries(L.table.map(t => [t.key, t.rank]));
+  document.getElementById("crest-season").textContent = roman(seasonNo);
+  const plate = (k, tag) => `<div class="plate"><b>${esc(T[k].manager)}</b><span>${esc(tag)}</span></div>`;
+  let ribbon = `Season ${roman(seasonNo)}`, kicker = "", headline = "", pair = null, tags = ["", ""];
+  const titleRound = L.title.find(r => r.week === week);
+  if (L.champion) {
+    ribbon = "Champion"; kicker = `World Touchdown War ${roman(seasonNo)}`;
+    headline = `<div class="plate"><b>${esc(T[L.champion].manager)}</b><span>${esc(T[L.champion].team)}</span></div>`;
+  } else if (titleRound) {
+    const g = titleRound.games[0];
+    ribbon = "Playoffs"; kicker = g.label; pair = [g.hi, g.lo]; tags = [`#${g.hi_seed} seed`, `#${g.lo_seed} seed`];
+  } else {
+    // Game of the week: the league game with the lowest rank total, or, before league games
+    // start, the conference game with the lowest rank total.
+    const games = L.league_games.games.length ? L.league_games.games.map(g => [g.a, g.b])
+      : Object.values(D.upcoming).flat();
+    const best = games.slice().sort((x, y) => (rank[x[0]] + rank[x[1]]) - (rank[y[0]] + rank[y[1]]) || Math.min(rank[x[0]], rank[x[1]]) - Math.min(rank[y[0]], rank[y[1]]))[0];
+    if (best) {
+      pair = best.slice().sort((a, b) => rank[a] - rank[b]);
+      kicker = `Week ${week} · game of the week`; tags = pair.map(k => `League #${rank[k]}`);
+    }
+  }
+  document.getElementById("hero-ribbon").textContent = ribbon;
+  document.getElementById("hero-kicker").textContent = kicker;
+  document.getElementById("hero-matchup").innerHTML = headline || (pair ? `${plate(pair[0], tags[0])}<span class="vs">VS.</span>${plate(pair[1], tags[1])}` : "");
+  document.getElementById("hero-status").textContent = `${D.season} season · through week ${last} · updated ${D.built}`;
+}
+
 function show(tab) {
   if (!["recap", "power", "conferences", "robber", "records", "commish"].includes(tab)) tab = "recap";
   if (tab === "commish" && !commishOpen) { askPin(); return; }
@@ -448,8 +613,7 @@ document.getElementById("tabs").addEventListener("click", e => {
   try { history.replaceState(null, "", "#" + b.dataset.tab); } catch (_) {}
 });
 
-document.getElementById("eyebrow").textContent = `${D.season} season · through week ${last}`;
-document.getElementById("meta").innerHTML = `Armadillo + Grizzly + Robber<br>Data from Sleeper, ${esc(D.built)}`;
+renderHero();
 document.getElementById("foot").textContent = "Scores and rosters come from Sleeper's public API. Rankings, luck and robbery figures are calculated here and are not official league standings.";
 renderRecap(); renderPower(); renderConferences(); renderRobber(); renderRecords();
 if (commishOpen) { renderCommish(); document.getElementById("tab-commish").classList.remove("locked"); }
