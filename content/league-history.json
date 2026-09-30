@@ -1,0 +1,34 @@
+{
+  "_about": "League history that Sleeper cannot know, maintained by hand from the commissioner's all-time spreadsheet. 'same_person' folds earlier Sleeper accounts into the account a manager is known by now. 'league_champions' is the commissioner's Hall of Champions, by season.",
+  "same_person": [
+    {
+      "known_as": "Wt8737",
+      "main_account": "1125917466770624512",
+      "earlier_accounts": {
+        "728283748847697920": "Tman1510 (2021)",
+        "868459205055672320": "Tman8735 (2022-2023)"
+      }
+    },
+    {
+      "known_as": "adamgum",
+      "main_account": "996991744665341952",
+      "earlier_accounts": {
+        "735033017701154816": "RbsLivesMatter (2021-2022)"
+      }
+    },
+    {
+      "known_as": "seachicken22",
+      "main_account": "1129283391804850176",
+      "earlier_accounts": {
+        "735035381434736640": "seachook (2021-2023)"
+      }
+    }
+  ],
+  "league_champions": {
+    "2021": "queens22",
+    "2022": "coachrockwood",
+    "2023": "queens22",
+    "2024": "Jessicoot",
+    "2025": "TheJoker10"
+  }
+}

@@ -3,12 +3,16 @@
 Covers Eagle and Kangaroo (2021-2025, data/raw/history) and their 2026 successors
 Armadillo and Grizzly (data/raw/leagues). Managers are keyed by Sleeper user_id, so a
 team keeps its history when the manager renames it or the conference is renamed.
+
+content/league-history.json adds what Sleeper cannot know: which accounts belong to the
+same person, and the commissioner's list of overall league champions.
 """
 import json
 from collections import defaultdict
 from pathlib import Path
 
-RAW = Path(__file__).resolve().parent.parent / "data" / "raw"
+ROOT = Path(__file__).resolve().parent.parent
+RAW = ROOT / "data" / "raw"
 CURRENT = {"1388319888270970880": "Armadillo", "1388320595925557248": "Grizzly"}
 
 
@@ -28,13 +32,16 @@ def build_records():
     seasons, state = _seasons()
     names, games, champions, entries = {}, [], [], []
     playoffs = defaultdict(set)
+    history = _load(ROOT / "content" / "league-history.json") or {}
+    alias = {old: p["main_account"] for p in history.get("same_person", []) for old in p["earlier_accounts"]}
+    league_champs = {int(y): name for y, name in history.get("league_champions", {}).items()}
 
     for conf, season, d in seasons:
         league = _load(d / "league.json")
         live = str(season) == state["season"] and league["status"] != "complete"
         for u in _load(d / "users.json"):
             names[u["user_id"]] = u["display_name"]  # seasons are in order, so the latest name wins
-        owner = {r["roster_id"]: r["owner_id"] for r in _load(d / "rosters.json")}
+        owner = {r["roster_id"]: alias.get(r["owner_id"], r["owner_id"]) for r in _load(d / "rosters.json")}
         first_playoff = league["settings"].get("playoff_week_start") or 99
         last_week = state["week"] - 1 if live else 18
         for uid in owner.values():
@@ -87,10 +94,16 @@ def build_records():
             s["pa"] += theirs
             s["g"] += 1
 
+    for p in history.get("same_person", []):  # show the name the person is known by now
+        if p["main_account"] in names:
+            names[p["main_account"]] = p["known_as"]
+    formerly = {p["main_account"]: [label.split(" (")[0] for label in p["earlier_accounts"].values()]
+                for p in history.get("same_person", [])}
     current = {uid for uid, season, _ in entries if str(season) == state["season"]}
     managers = []
     for uid, s in stats.items():
         titles = [c for c in champions if c["champion"] == uid]
+        league = sorted(y for y, who in league_champs.items() if who.lower() == names.get(uid, "").lower())
         managers.append({
             "id": uid, "name": names.get(uid, "Unknown"), "active": uid in current,
             "seasons": len({season for u, season, _ in entries if u == uid}),
@@ -98,8 +111,9 @@ def build_records():
             "ppg": round(s["pf"] / s["g"], 2), "pf": round(s["pf"], 2),
             "playoffs": len(playoffs.get(uid, ())), "finals": sum(1 for c in champions if uid in (c["champion"], c["runner_up"])),
             "titles": len(titles), "title_years": [f"{c['season']} {c['conf']}" for c in titles],
+            "league_titles": league, "formerly": formerly.get(uid, []),
         })
-    managers.sort(key=lambda m: (-m["titles"], -m["w"], -m["pct"]))
+    managers.sort(key=lambda m: (-len(m["league_titles"]), -m["titles"], -m["w"], -m["pct"]))
 
     def streaks(flag):
         best = []
@@ -138,6 +152,7 @@ def build_records():
 
     return {
         "names": names, "seasons": sorted({s for _, s, _ in seasons}), "games": len(games),
+        "league_champions": league_champs,
         "champions": sorted(champions, key=lambda c: (-c["season"], c["conf"])),
         "managers": managers,
         "high": sorted(sides, key=lambda s: -s["pts"])[:10],
