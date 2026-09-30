@@ -1,0 +1,73 @@
+name: Update site
+
+on:
+  schedule:
+    # Every day at 10:15 UTC (about 6 am US Eastern). Tuesday's run is the one that
+    # picks up the finished week; the others keep rosters, waivers and steals current.
+    - cron: "15 10 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write   # to commit a newly written recap
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pull data from Sleeper
+        run: python scripts/pull_sleeper.py --nfl --players --history
+
+      - name: Write the recap (only if an API key is configured)
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then pip install --quiet anthropic; fi
+          python scripts/write_recap.py
+
+      - name: Build pages
+        run: |
+          python scripts/build_site.py
+          python scripts/build_live.py
+          node scripts/check_pages.js
+
+      - name: Commit a new recap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add content/recaps
+          git diff --cached --quiet || (git commit -m "Add weekly recap" && git push)
+
+      - name: Assemble the public site
+        run: |
+          mkdir _site
+          cp site/index.html site/live.html _site/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

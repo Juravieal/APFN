@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>APFN Live</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: scoreboard wall. Alerts strip on top, one card per game, lineups folded inside each card. */
+:root {
+  --bg: #f2f4f6; --surface: #ffffff; --sunken: #e7ebef; --line: #d3dae1;
+  --fg: #15202b; --fg2: #4a5866; --fg3: #6f7d8b;
+  --accent: #1f5a8a; --accent-soft: #d9e6f2;
+  --loot: #8f5a08; --loot-soft: #f6e8cc;
+  --win: #1e6b43; --win-soft: #dcefe4; --loss: #a23a2a; --loss-soft: #f6dfda;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0f151b; --surface: #182029; --sunken: #121920; --line: #2a3541;
+  --fg: #e7edf2; --fg2: #aab6c2; --fg3: #8492a0;
+  --accent: #7db4e6; --accent-soft: #1d3347;
+  --loot: #e5b155; --loot-soft: #3a2e17;
+  --win: #6fcb97; --win-soft: #173326; --loss: #f0907f; --loss-soft: #3d201c;
+  color-scheme: dark } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1280px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 18px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; margin: 0; line-height: 1.05; }
+h1 { font-size: 40px; } h3 { font-size: 15px; font-weight: 600; letter-spacing: .08em; color: var(--fg3); }
+p { margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+.vs { color: var(--fg3); font-size: 12px; }
+header.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 24px; border-bottom: 3px solid var(--fg); padding-bottom: 12px; }
+header.top .meta { color: var(--fg2); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-size: 14px; }
+nav.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+nav.tabs button { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--fg2); border-radius: 4px; cursor: pointer; }
+nav.tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.banner { background: var(--loss-soft); border-radius: 4px; padding: 10px 14px; }
+.alerts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+.alert { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--loot); border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.alert .k { font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); }
+.games { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 14px; }
+.gamecard { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column; min-width: 0; }
+.side { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; padding: 10px 14px; align-items: center; }
+.side + .side { border-top: 1px solid var(--line); }
+.side .name { font-weight: 600; overflow-wrap: anywhere; }
+.side .pts { font: 700 34px var(--display); line-height: 1; font-variant-numeric: tabular-nums; }
+.side.behind .pts { color: var(--fg2); }
+.side .sub { grid-column: 1 / -1; color: var(--fg3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.prob { display: flex; height: 8px; gap: 2px; margin: 0 14px; }
+.prob i { display: block; background: var(--accent); border-radius: 4px; min-width: 4px; }
+.prob i + i { background: var(--line); }
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 8px 14px; color: var(--fg2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.chip { display: inline-block; font: 600 12px var(--display); letter-spacing: .08em; text-transform: uppercase; padding: 1px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--fg2); }
+.chip.live { background: var(--win-soft); border-color: transparent; color: var(--fg); }
+.chip.loot { background: var(--loot-soft); border-color: transparent; color: var(--fg); }
+details { border-top: 1px solid var(--line); }
+summary { cursor: pointer; padding: 8px 14px; font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); }
+.lineups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; padding: 0 14px 12px; }
+.lineups table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 13px; }
+.lineups td { padding: 3px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lineups td.r { text-align: right; white-space: nowrap; padding-left: 6px; }
+.lineups .st { color: var(--fg3); font-size: 11px; }
+.lineups .on { color: var(--win); font-weight: 600; }
+footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; max-width: 80ch; }
+a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
+a.jump:hover { background: var(--accent-soft); }
+.bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+@media (max-width: 520px) { .lineups { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><div class="eyebrow" id="eyebrow">Loading</div><h1>APFN Live</h1></div>
+    <div class="meta" id="meta"></div>
+  </header>
+  <div class="banner" id="error" hidden></div>
+  <div class="bar"><nav class="tabs" role="tablist" id="tabs"></nav><a class="jump" href="./">League hub</a></div>
+  <div class="alerts" id="alerts"></div>
+  <div class="games" id="games"></div>
+  <footer>Scores come straight from Sleeper and refresh every 60 seconds, which is as often as Sleeper updates them. Projected finals use Sleeper's pre-game projections for players who have not finished. Win chance is a rough estimate from the projected margin and how many players are left.</footer>
+</div>
+
+<script>
+const CFG = /*__DATA__*/null;
+const API = "https://api.sleeper.app/v1", REFRESH = 60;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const f1 = n => Number(n).toFixed(1), f2 = n => Number(n).toFixed(2);
+const get = async url => { const r = await fetch(url); if (!r.ok) throw new Error(url + " " + r.status); return r.json(); };
+const params = new URLSearchParams(location.search);
+const S = { week: null, season: null, tab: 0, leagues: [], status: {}, proj: {}, left: REFRESH, updated: null };
+
+const player = id => { const p = CFG.players[id]; return p ? { name: p[0], pos: p[1], nfl: p[2] } : { name: id, pos: "", nfl: id }; };
+const scoreOf = (stats, scoring) => Object.entries(scoring).reduce((t, [k, v]) => t + (stats[k] || 0) * v, 0);
+// Normal CDF, for the win-chance estimate.
+const phi = z => { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+
+async function setup() {
+  const state = await get(`${API}/state/nfl`);
+  S.season = state.season;
+  S.week = Number(params.get("week")) || state.week;
+  S.proj = await get(`${API}/projections/nfl/regular/${S.season}/${S.week}`);
+  S.leagues = await Promise.all(CFG.leagues.map(async L => {
+    const [league, users, rosters] = await Promise.all([get(`${API}/league/${L.id}`), get(`${API}/league/${L.id}/users`), get(`${API}/league/${L.id}/rosters`)]);
+    const u = Object.fromEntries(users.map(x => [x.user_id, x]));
+    const teams = Object.fromEntries(rosters.map(r => { const o = u[r.owner_id] || {}; const mgr = o.display_name || "Roster " + r.roster_id;
+      return [r.roster_id, { manager: mgr, team: (o.metadata || {}).team_name || "Team " + mgr, rec: `${r.settings.wins}-${r.settings.losses}`, wins: r.settings.wins }]; }));
+    return { ...L, scoring: league.scoring_settings, teams, games: [] };
+  }));
+  document.getElementById("tabs").innerHTML = S.leagues.map((L, i) => `<button role="tab" data-i="${i}" aria-selected="${i === 0}">${esc(L.name)}</button>`).join("");
+}
+
+function gameState(nfl) { const s = S.status[nfl]; return !s ? "none" : s === "complete" ? "done" : s === "pre_game" ? "todo" : "live"; }
+
+function sideOf(L, m) {
+  const pts = m.players_points || {};
+  const rows = (m.starters || []).filter(id => id && id !== "0").map(id => {
+    const p = player(id), st = gameState(p.nfl), now = pts[id] || 0, proj = scoreOf(S.proj[id] || {}, L.scoring);
+    const exp = st === "done" || st === "none" ? now : st === "todo" ? proj : Math.max(now, proj);
+    return { ...p, st, now, proj, exp };
+  });
+  const left = rows.reduce((t, r) => t + (r.st === "todo" ? 1 : r.st === "live" ? 0.5 : 0), 0);
+  return { rid: m.roster_id, t: L.teams[m.roster_id], pts: m.points || 0, exp: rows.reduce((t, r) => t + r.exp, 0), rows, left,
+    todo: rows.filter(r => r.st === "todo").length, live: rows.filter(r => r.st === "live").length };
+}
+
+async function refresh() {
+  const sched = await get(`https://api.sleeper.com/schedule/nfl/regular/${S.season}`);
+  S.status = {};
+  sched.filter(g => g.week === S.week).forEach(g => { S.status[g.home] = g.status; S.status[g.away] = g.status; });
+  await Promise.all(S.leagues.map(async L => {
+    const ms = await get(`${API}/league/${L.id}/matchups/${S.week}`), by = {};
+    ms.filter(m => m.matchup_id != null).forEach(m => (by[m.matchup_id] ||= []).push(m));
+    L.games = Object.values(by).filter(p => p.length === 2).map(p => {
+      const [a, b] = p.map(m => sideOf(L, m)), left = a.left + b.left;
+      const pa = left === 0 ? (a.pts > b.pts ? 1 : a.pts < b.pts ? 0 : 0.5) : phi((a.exp - b.exp) / (7 * Math.sqrt(left)));
+      return { a, b, pa, left };
+    }).sort((x, y) => Math.abs(x.pa - 0.5) - Math.abs(y.pa - 0.5));
+  }));
+  S.updated = new Date(); S.left = REFRESH;
+  document.getElementById("error").hidden = true;
+  render();
+}
+
+function alerts(L) {
+  const out = [], sides = L.games.flatMap(g => [g.a, g.b]);
+  if (!sides.length) return out;
+  const open = L.games.filter(g => g.left > 0);
+  if (open.length) { const g = open[0], fav = g.pa >= 0.5 ? g.a : g.b, dog = fav === g.a ? g.b : g.a;
+    out.push(["Tightest game", `${esc(fav.t.manager)} over ${esc(dog.t.manager)} by a projected ${f1(Math.abs(g.a.exp - g.b.exp))}`]); }
+  const upset = open.map(g => g.pa >= 0.5 ? [g.a, g.b, g.pa] : [g.b, g.a, 1 - g.pa]).filter(([f, d, p]) => f.t.wins < d.t.wins && p >= 0.6).sort((x, y) => y[2] - x[2])[0];
+  if (upset) out.push(["Upset watch", `${esc(upset[0].t.manager)} (${upset[0].t.rec}) has a ${Math.round(100 * upset[2])}% chance against ${esc(upset[1].t.manager)} (${upset[1].t.rec})`]);
+  const top = [...sides].sort((x, y) => y.exp - x.exp)[0], rec = L.record;
+  if (rec) { const gap = rec.pts - top.pts;
+    out.push(["Record watch", gap <= 0 ? `${esc(top.t.manager)} has broken the all-time high of ${f2(rec.pts)} with ${f2(top.pts)}`
+      : `${esc(top.t.manager)} ${open.length ? `leads the week, on pace for ${f1(top.exp)}` : `had the week's high of ${f2(top.pts)}`}. The all-time high is ${f2(rec.pts)} (${esc(rec.name)}, ${rec.season} week ${rec.week}), ${f1(gap)} away.`]); }
+  if (L.robber) { const r = L.games.map(g => g.pa >= 0.5 ? [g.a, g.b] : [g.b, g.a]).map(([w, l]) => `${esc(w.t.manager)} robs ${esc(l.t.manager)}`);
+    out.push([open.length ? "Robberies as it stands" : "Robberies earned", r.join(" · ")]); }
+  return out;
+}
+
+function lineup(s) {
+  return `<table><tbody>${s.rows.map(r => `<tr><td><b>${esc(r.name)}</b> <span class="vs">${esc(r.pos)} ${esc(r.nfl)}</span><br><span class="st ${r.st === "live" ? "on" : ""}">${{ done: "Final", live: "Playing", todo: "Yet to play", none: "No game" }[r.st]}${r.st !== "done" && r.st !== "none" ? " · proj " + f1(r.proj) : ""}</span></td><td class="r"><b>${f1(r.now)}</b></td></tr>`).join("")}</tbody></table>`;
+}
+
+function render() {
+  const L = S.leagues[S.tab];
+  const anyLive = L.games.some(g => g.a.live || g.b.live), allDone = L.games.every(g => g.left === 0);
+  document.getElementById("eyebrow").textContent = `${S.season} season · week ${S.week} · ${allDone ? "final" : anyLive ? "games in progress" : "waiting for kickoff"}`;
+  document.getElementById("alerts").innerHTML = alerts(L).map(([k, v]) => `<div class="alert"><span class="k">${k}</span><span>${v}</span></div>`).join("");
+  document.getElementById("games").innerHTML = L.games.map(g => {
+    const lead = g.a.pts === g.b.pts ? null : g.a.pts > g.b.pts ? g.a : g.b;
+    const side = (s, p) => `<div class="side ${lead && lead !== s ? "behind" : ""}"><div><div class="name">${esc(s.t.team)}</div><span class="vs">${esc(s.t.manager)} · ${s.t.rec}</span></div><div class="pts">${f2(s.pts)}</div>
+      <div class="sub">Projected ${f1(s.exp)} · ${g.left === 0 ? "all players done" : `${s.todo} to play${s.live ? `, ${s.live} playing` : ""}`} · win chance ${Math.round(100 * p)}%</div></div>`;
+    const fav = g.pa >= 0.5 ? g.a : g.b;
+    return `<div class="gamecard">${side(g.a, g.pa)}<div class="prob" title="Win chance"><i style="flex:${Math.max(g.pa, 0.02)}"></i><i style="flex:${Math.max(1 - g.pa, 0.02)}"></i></div>${side(g.b, 1 - g.pa)}
+      <div class="foot"><span>${g.left === 0 ? `Final: ${esc((lead || fav).t.manager)} wins by ${f2(Math.abs(g.a.pts - g.b.pts))}` : `${esc(fav.t.manager)} by ${f1(Math.abs(g.a.exp - g.b.exp))} projected`}</span>
+      ${g.a.live || g.b.live ? '<span class="chip live">Live</span>' : ""}${L.robber ? `<span class="chip loot">${esc((g.left === 0 ? lead || fav : fav).t.manager)} robs</span>` : ""}</div>
+      <details data-key="${L.id}-${g.a.rid}"><summary>Lineups</summary><div class="lineups">${lineup(g.a)}${lineup(g.b)}</div></details></div>`;
+  }).join("") || `<p>No games found for week ${S.week}.</p>`;
+  document.querySelectorAll("details").forEach(d => { d.open = opened.has(d.dataset.key); d.addEventListener("toggle", () => d.open ? opened.add(d.dataset.key) : opened.delete(d.dataset.key)); });
+  tick();
+}
+const opened = new Set();
+
+function tick() {
+  document.getElementById("meta").innerHTML = S.updated ? `Updated ${S.updated.toLocaleTimeString()}<br>Next refresh in ${Math.max(S.left, 0)}s` : "";
+}
+function fail(e) {
+  const el = document.getElementById("error");
+  el.textContent = "Could not reach Sleeper. Trying again in a minute."; el.hidden = false; S.left = REFRESH; console.error(e);
+}
+
+document.getElementById("tabs").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.tab = Number(b.dataset.i);
+  document.querySelectorAll("#tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  render();
+});
+setup().then(refresh).catch(fail);
+setInterval(() => { S.left -= 1; if (S.left <= 0) { S.left = REFRESH; (S.leagues.length ? refresh() : setup().then(refresh)).catch(fail); } tick(); }, 1000);
+</script>
+</body>
+</html>

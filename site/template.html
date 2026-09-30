@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>APFN League Hub</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: scoreboard header, three tabs, dense ranked tables; summary tiles sit above the detail. */
+:root {
+  --bg: #f2f4f6; --surface: #ffffff; --sunken: #e7ebef; --line: #d3dae1;
+  --fg: #15202b; --fg2: #4a5866; --fg3: #6f7d8b;
+  --accent: #1f5a8a; --accent-soft: #d9e6f2;
+  --loot: #8f5a08; --loot-soft: #f6e8cc;
+  --win: #1e6b43; --win-soft: #dcefe4; --loss: #a23a2a; --loss-soft: #f6dfda;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #182029; --sunken: #121920; --line: #2a3541;
+  --fg: #e7edf2; --fg2: #aab6c2; --fg3: #8492a0;
+  --accent: #7db4e6; --accent-soft: #1d3347;
+  --loot: #e5b155; --loot-soft: #3a2e17;
+  --win: #6fcb97; --win-soft: #173326; --loss: #f0907f; --loss-soft: #3d201c;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #182029; --sunken: #121920; --line: #2a3541;
+  --fg: #e7edf2; --fg2: #aab6c2; --fg3: #8492a0;
+  --accent: #7db4e6; --accent-soft: #1d3347;
+  --loot: #e5b155; --loot-soft: #3a2e17;
+  --win: #6fcb97; --win-soft: #173326; --loss: #f0907f; --loss-soft: #3d201c;
+  color-scheme: dark }
+
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance; line-height: 1.05; }
+h1 { font-size: 40px; }
+h2 { font-size: 24px; }
+h3 { font-size: 17px; font-weight: 600; letter-spacing: .05em; color: var(--fg2); }
+p { margin: 0; }
+.muted { color: var(--fg2); }
+.note { color: var(--fg2); max-width: 68ch; }
+.num { font-variant-numeric: tabular-nums; }
+
+header.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 24px; border-bottom: 3px solid var(--fg); padding-bottom: 12px; }
+header.top .meta { color: var(--fg2); font-size: 13px; text-align: right; }
+.eyebrow { font-family: var(--display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-size: 14px; }
+
+nav.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+nav.tabs button { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--fg2); border-radius: 4px; cursor: pointer; }
+nav.tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+nav.tabs button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+section.panel { display: flex; flex-direction: column; gap: 24px; }
+.block { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tile .k { font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); }
+.tile .v { font: 700 26px var(--display); line-height: 1.1; overflow-wrap: anywhere; }
+.tile .s { color: var(--fg2); font-size: 13px; }
+
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); background: var(--sunken); }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+td.rank { font: 700 20px var(--display); color: var(--fg2); width: 1%; }
+tr.cut td { border-bottom: 2px dashed var(--fg3); }
+.team { display: flex; flex-direction: column; min-width: 170px; white-space: normal; }
+.team b { font-weight: 600; overflow-wrap: break-word; }
+.team span { color: var(--fg3); font-size: 12px; }
+.chip { display: inline-block; font: 600 12px var(--display); letter-spacing: .08em; text-transform: uppercase; padding: 1px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--fg2); }
+.chip.up { background: var(--win-soft); border-color: transparent; color: var(--fg); }
+.chip.down { background: var(--loss-soft); border-color: transparent; color: var(--fg); }
+.chip.loot { background: var(--loot-soft); border-color: transparent; color: var(--fg); }
+.bar { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+.bar i { display: block; height: 8px; border-radius: 0 4px 4px 0; background: var(--accent); }
+.bar .track { flex: 1; background: var(--sunken); border-radius: 0 4px 4px 0; }
+.wk { display: inline-flex; gap: 5px; align-items: baseline; padding: 2px 6px; border-radius: 3px; font-size: 13px; margin-right: 2px; }
+.wk.W { background: var(--win-soft); } .wk.L { background: var(--loss-soft); } .wk.T { background: var(--sunken); }
+.wk em { font: 700 12px var(--display); font-style: normal; }
+.wk.W em { color: var(--win); } .wk.L em { color: var(--loss); }
+.pos { color: var(--win); } .neg { color: var(--loss); }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 20px; }
+ul.plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+ul.plain li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+ul.plain li:last-child { border-bottom: 0; }
+ul.plain li > div { min-width: 0; overflow-wrap: anywhere; }
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.vs { color: var(--fg3); font-size: 12px; }
+
+.owed { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--loot); border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.card .head { font-weight: 600; overflow-wrap: anywhere; }
+.card ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
+.card li span { color: var(--fg3); }
+article.story { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 16px 32px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+article.story:last-child { border-bottom: 0; }
+article.story .kicker { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; }
+article.story h2 { font-size: 30px; }
+article.story .prose { display: flex; flex-direction: column; gap: 10px; max-width: 66ch; font-size: 15px; line-height: 1.55; }
+article.story .scores { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.game { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 12px; }
+.game + .game { border-top: 1px solid var(--line); }
+.game .n { overflow-wrap: anywhere; } .game .lose { color: var(--fg2); }
+.game .star { grid-column: 1 / -1; color: var(--fg3); font-size: 12px; }
+@media (max-width: 760px) { article.story { grid-template-columns: minmax(0, 1fr); } }
+.pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.pick select { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--fg); max-width: 100%; }
+.pick select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gone { color: var(--fg3); }
+footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
+a.jump:hover { background: var(--accent-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow" id="eyebrow"></div>
+      <h1>APFN League Hub</h1>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" id="tab-recap" data-tab="recap">Recap</button>
+    <button role="tab" id="tab-power" data-tab="power">Power rankings</button>
+    <button role="tab" id="tab-conferences" data-tab="conferences">Conferences</button>
+    <button role="tab" id="tab-robber" data-tab="robber">Robber League</button>
+    <button role="tab" id="tab-records" data-tab="records">Record book</button>
+    <a class="jump" href="live.html">Live scoreboard</a>
+  </nav>
+
+  <section class="panel" id="recap" role="tabpanel" aria-labelledby="tab-recap"></section>
+  <section class="panel" id="power" role="tabpanel" aria-labelledby="tab-power" hidden></section>
+  <section class="panel" id="conferences" role="tabpanel" aria-labelledby="tab-conferences" hidden></section>
+  <section class="panel" id="robber" role="tabpanel" aria-labelledby="tab-robber" hidden></section>
+  <section class="panel" id="records" role="tabpanel" aria-labelledby="tab-records" hidden></section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const T = {};
+[...D.teams, ...D.robber.teams].forEach(t => T[t.key] = t);
+const f1 = n => Number(n).toFixed(1), f2 = n => Number(n).toFixed(2);
+const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toFixed(Math.abs(n) >= 10 ? 1 : 2);
+const last = D.done[D.done.length - 1] || 0;
+
+const team = k => `<div class="team"><b>${esc(T[k].team)}</b><span>${esc(T[k].manager)}</span></div>`;
+const short = k => esc(T[k].manager);
+const rec = t => `${t.w}–${t.l}${t.t ? "–" + t.t : ""}`;
+const weekCells = t => t.weeks.map(x => `<span class="wk ${x.res}" title="Week ${x.week}: ${f2(x.pts)} to ${f2(x.opp_pts)} vs ${short(x.opp)}"><em>${x.res}</em>${f1(x.pts)}</span>`).join("");
+const luckChip = l => Math.abs(l) < 0.5 ? "" : ` <span class="chip ${l > 0 ? "up" : "down"}">${l > 0 ? "Lucky" : "Unlucky"}</span>`;
+const bar = (v, max) => `<div class="bar"><span class="num">${f1(v)}</span><div class="track"><i style="width:${(100 * v / max).toFixed(1)}%"></i></div></div>`;
+
+function rankTable(teams, showConf) {
+  const max = Math.max(...teams.map(t => t.ppg));
+  return `<div class="scroll"><table>
+    <thead><tr><th>#</th><th>Team</th>${showConf ? "<th>Conf</th>" : ""}<th>Record</th><th>All-play</th><th>Points per game</th><th class="r">Luck</th><th class="r">Lineup</th><th>Weekly scores</th></tr></thead>
+    <tbody>${teams.map(t => `<tr>
+      <td class="rank">${t.rank}</td><td>${team(t.key)}</td>
+      ${showConf ? `<td><span class="chip">${esc(t.conf)}</span></td>` : ""}
+      <td>${rec(t)}</td><td>${t.ap_w}–${t.ap_l}${t.ap_t ? "–" + t.ap_t : ""}</td>
+      <td>${bar(t.ppg, max)}</td>
+      <td class="r"><span class="${t.luck > 0 ? "pos" : t.luck < 0 ? "neg" : ""}">${signed(t.luck)}</span>${luckChip(t.luck)}</td>
+      <td class="r" title="${f1(t.left)} points left on the bench">${t.eff == null ? "" : f1(t.eff) + "%"}</td>
+      <td>${weekCells(t)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+function renderRecap() {
+  const R = D.recap, el = document.getElementById("recap");
+  if (!R) { el.innerHTML = `<p class="note">The first recap appears once week 1 is final.</p>`; return; }
+  el.innerHTML = R.leagues.map(L => `<article class="story">
+    <div class="kicker"><span class="eyebrow">${esc(L.name)}${L.name === "Robber" ? " League" : " Conference"} · week ${R.week}</span><h2>${esc(L.headline)}</h2></div>
+    <div class="prose">${L.paragraphs.map(p => `<p>${esc(p)}</p>`).join("")}${L.byline ? `<p class="vs">${esc(L.byline)}</p>` : ""}</div>
+    <div class="scores"><h3>Final scores</h3><div class="list">${L.games.map(([w, l]) => `<div class="game">
+      <b class="n">${esc(T[w.team].team)}</b><b class="num">${f2(w.pts)}</b>
+      <span class="n lose">${esc(T[l.team].team)}</span><span class="num lose">${f2(l.pts)}</span>
+      <span class="star">${esc(w.star)} ${f1(w.star_pts)} · ${esc(l.star)} ${f1(l.star_pts)}</span></div>`).join("")}</div></div>
+  </article>`).join("");
+}
+
+function renderPower() {
+  const ts = D.teams, [a, b] = D.conferences;
+  const lucky = [...ts].sort((x, y) => y.luck - x.luck)[0], unlucky = [...ts].sort((x, y) => x.luck - y.luck)[0];
+  const lead = D.cross[a] >= D.cross[b] ? a : b, trail = lead === a ? b : a;
+  document.getElementById("power").innerHTML = `
+    <div class="tiles">
+      <div class="tile"><span class="k">Number one</span><span class="v">${esc(ts[0].team)}</span><span class="s">${esc(ts[0].manager)} · ${esc(ts[0].conf)} · all-play ${ts[0].ap_w}–${ts[0].ap_l}</span></div>
+      <div class="tile"><span class="k">Conference vs conference</span><span class="v">${esc(lead)} ${D.cross[lead]}–${D.cross[trail]}</span><span class="s">Every ${esc(a)} score against every ${esc(b)} score, each week. Average ${f1(D.conf_ppg[a])} vs ${f1(D.conf_ppg[b])} a game.</span></div>
+      <div class="tile"><span class="k">Luckiest</span><span class="v">${esc(lucky.team)}</span><span class="s">${esc(lucky.manager)} · ${rec(lucky)} with ${f2(lucky.xw)} expected wins</span></div>
+      <div class="tile"><span class="k">Unluckiest</span><span class="v">${esc(unlucky.team)}</span><span class="s">${esc(unlucky.manager)} · ${rec(unlucky)} with ${f2(unlucky.xw)} expected wins</span></div>
+    </div>
+    <div class="block">
+      <h2>All 20 teams, one table</h2>
+      <p class="note">Ranked by all-play record: each week, every team is scored against the other 19 across both conferences, so the schedule stops mattering. Luck is actual wins minus the wins that all-play record would predict. Lineup is points scored as a share of the best lineup that roster could have started.</p>
+      ${rankTable(ts, true)}
+    </div>`;
+}
+
+function standings(teams, cut) {
+  const rows = [...teams].sort((x, y) => y.w - x.w || y.pf - x.pf);
+  return `<div class="scroll"><table><thead><tr><th>#</th><th>Team</th><th>Record</th><th class="r">PF</th><th class="r">PA</th><th class="r">Power</th></tr></thead>
+    <tbody>${rows.map((t, i) => `<tr class="${i === cut - 1 ? "cut" : ""}"><td class="rank">${i + 1}</td><td>${team(t.key)}</td><td>${rec(t)}</td><td class="r">${f1(t.pf)}</td><td class="r">${f1(t.pa)}</td><td class="r">#${t.rank}</td></tr>`).join("")}</tbody></table></div>`;
+}
+const games = list => `<div class="list"><ul class="plain">${list.map(([x, y]) => `<li><div><b>${esc(T[x].team)}</b> <span class="vs">#${T[x].rank} · ${rec(T[x])}</span></div><div style="text-align:right"><b>${esc(T[y].team)}</b> <span class="vs">#${T[y].rank} · ${rec(T[y])}</span></div></li>`).join("")}</ul></div>`;
+
+function renderConferences() {
+  document.getElementById("conferences").innerHTML = `
+    <div class="cols">${D.conferences.map(c => `<div class="block">
+      <h2>${esc(c)} Conference</h2>
+      ${standings(D.teams.filter(t => t.conf === c), D.playoff_teams)}
+      <h3>Week ${D.week_now} games</h3>
+      ${games(D.upcoming[c])}
+    </div>`).join("")}</div>
+    <p class="note">The dashed line marks the ${D.playoff_teams} playoff places in each conference. Power is the team's rank among all 20.</p>
+    <div class="block">
+      <h2>Week ${last} awards</h2>
+      <div class="list"><ul class="plain">${D.awards.map(a => `<li><div><span class="muted">${esc(a.label)}</span><br><b>${esc(T[a.team].team)}</b> <span class="vs">${esc(T[a.team].manager)} · ${esc(T[a.team].conf)}${a.vs ? " · vs " + short(a.vs) : ""}</span></div><div class="num"><b>${esc(a.value)}</b></div></li>`).join("")}</ul></div>
+    </div>`;
+}
+
+const player = p => `<b>${esc(p.name)}</b> <span class="vs">${esc(p.pos)} · ${esc(p.nfl)}</span>`;
+function renderRobber() {
+  const R = D.robber, S = R.summary;
+  const owed = R.owed.length ? `<div class="block">
+      <h2>Steals still to be made</h2>
+      <p class="note">Winners who have not yet taken a player. The list under each is the loser's roster ranked by points per game this season.</p>
+      <div class="owed">${R.owed.map(o => `<div class="card">
+        <div class="head">Week ${o.week}: ${short(o.winner)} robs ${short(o.loser)} <span class="vs num">${f1(o.score[0])}–${f1(o.score[1])}</span></div>
+        <ol>${o.targets.map(p => `<li>${esc(p.name)} <span>${esc(p.pos)} · ${esc(p.nfl)} · ${f1(p.ppg)} a game</span></li>`).join("")}</ol>
+      </div>`).join("")}</div></div>` : "";
+  const ledger = [...R.steals].sort((x, y) => y.week - x.week || y.net - x.net);
+  const mgr = [...R.teams].sort((x, y) => y.w - x.w || y.pf - x.pf);
+  const flagged = R.bench.filter(b => b.flag);
+  document.getElementById("robber").innerHTML = `
+    <p class="note"><b>House rules.</b> No bench. Each week's winner steals one player of their choice from the team they beat, and the loser jumps the winner in waiver order. Bench slots are only for injured players and players on a bye.</p>
+    ${owed}
+    <div class="block">
+      <h2>Robbery ledger</h2>
+      <p class="note">Haul is what the stolen player has scored for the thief since. Net subtracts what the player released to make room scored over the same weeks.</p>
+      <div class="scroll"><table><thead><tr><th>Wk</th><th>Thief</th><th>Robbed</th><th>Player taken</th><th>Released to make room</th><th class="r">Haul</th><th class="r">Net</th><th>Now with</th></tr></thead>
+      <tbody>${ledger.map(s => `<tr><td class="rank">${s.week}</td><td>${short(s.thief)} <span class="vs num">${f1(s.score[0])}–${f1(s.score[1])}</span></td><td>${short(s.victim)}</td>
+        <td>${player(s.player)}</td><td>${s.released ? player(s.released) : '<span class="vs">had an open slot</span>'}</td>
+        <td class="r" title="${s.held_weeks} week(s) held, ${s.started} started">${s.held_weeks ? f1(s.loot) : '<span class="vs">no games yet</span>'}</td>
+        <td class="r">${s.held_weeks ? `<span class="${s.net > 0 ? "pos" : s.net < 0 ? "neg" : ""}">${signed(s.net)}</span>` : ""}</td>
+        <td>${s.holder ? (s.holder === s.thief ? short(s.holder) : `${short(s.holder)} <span class="chip loot">Moved on</span>`) : '<span class="vs">Free agent</span>'}</td></tr>`).join("")}</tbody></table></div>
+    </div>
+    <div class="block">
+      <h2>Standings and robbery balance</h2>
+      <p class="note">Gained is the net from steals made. Lost is what stolen players have scored since they were taken. The dashed line marks the ${R.playoff_teams} playoff places.</p>
+      <div class="scroll"><table><thead><tr><th>#</th><th>Team</th><th>Record</th><th class="r">PF</th><th>All-play</th><th class="r">Steals</th><th class="r">Robbed</th><th class="r">Gained</th><th class="r">Lost</th><th class="r">Balance</th><th class="r">Waiver</th></tr></thead>
+      <tbody>${mgr.map((t, i) => { const s = S[t.key]; return `<tr class="${i === R.playoff_teams - 1 ? "cut" : ""}"><td class="rank">${i + 1}</td><td>${team(t.key)}</td><td>${rec(t)}</td><td class="r">${f1(t.pf)}</td><td>${t.ap_w}–${t.ap_l}</td>
+        <td class="r">${s.steals}</td><td class="r">${s.robbed}</td><td class="r">${signed(s.gained)}</td><td class="r">${f1(s.lost)}</td>
+        <td class="r"><span class="${s.net > 0 ? "pos" : s.net < 0 ? "neg" : ""}">${signed(s.net)}</span></td><td class="r">${t.waiver ?? ""}</td></tr>`; }).join("")}</tbody></table></div>
+    </div>
+    <div class="cols">
+      <div class="block"><h2>Week ${D.week_now} games</h2>${games(R.upcoming)}</div>
+      <div class="block"><h2>Bench check</h2>
+        <p class="note">${flagged.length ? "Players on a bench who are not on a bye and have no injury tag." : "Every benched player is injured or on a bye."}</p>
+        ${flagged.length ? `<div class="list"><ul class="plain">${flagged.map(b => `<li><div>${player(b)}</div><div class="vs">${short(b.team)}</div></li>`).join("")}</ul></div>` : ""}
+      </div>
+    </div>`;
+}
+
+function renderRecords() {
+  const R = D.records, N = id => esc(R.names[id] || "Vacant team");
+  const when = g => `<span class="vs">${g.season} wk ${g.week} · ${esc(g.conf)}${g.playoff ? " · playoffs" : ""}</span>`;
+  const gameList = (title, list, val) => `<div class="block"><h3>${title}</h3><div class="list"><ul class="plain">${list.map(g => `<li><div><b>${N(g.w)}</b> ${f2(g.wp)}, ${N(g.l)} ${f2(g.lp)}<br>${when(g)}</div><div class="num"><b>${val(g)}</b></div></li>`).join("")}</ul></div></div>`;
+  const sideList = (title, list) => `<div class="block"><h3>${title}</h3><div class="list"><ul class="plain">${list.map(s => `<li><div><b>${N(s.id)}</b> <span class="vs">vs ${N(s.opp)}</span><br>${when(s)}</div><div class="num"><b>${f2(s.pts)}</b></div></li>`).join("")}</ul></div></div>`;
+  const streak = (title, list) => `<div class="block"><h3>${title}</h3><div class="list"><ul class="plain">${list.map(s => `<li><div><b>${N(s.id)}</b><br><span class="vs">${s.from[0]} wk ${s.from[1]} to ${s.to[0]} wk ${s.to[1]}</span></div><div class="num"><b>${s.n}</b></div></li>`).join("")}</ul></div></div>`;
+  const years = [...new Set(R.champions.map(c => c.season))];
+  const confs = [...new Set(R.champions.map(c => c.conf))].sort();
+  document.getElementById("records").innerHTML = `
+    <p class="note">${R.games} games since ${R.seasons[0]}: the Eagle and Kangaroo conferences through ${years[0]}, then Armadillo and Grizzly. Regular-season and playoff-bracket games count; consolation games do not. The Robber League is not included.</p>
+    <div class="block"><h2>Champions</h2>
+      <div class="scroll"><table><thead><tr><th>Season</th>${confs.map(c => `<th>${esc(c)} champion</th><th>Runner-up</th>`).join("")}</tr></thead>
+      <tbody>${years.map(y => `<tr><td class="rank">${y}</td>${confs.map(c => { const x = R.champions.find(k => k.season === y && k.conf === c); return x ? `<td><b>${N(x.champion)}</b></td><td>${N(x.runner_up)}</td>` : "<td></td><td></td>"; }).join("")}</tr>`).join("")}</tbody></table></div></div>
+    <div class="block"><h2>All-time managers</h2>
+      <p class="note">Regular-season records. Greyed names are not in the league this season.</p>
+      <div class="scroll"><table><thead><tr><th>Manager</th><th class="r">Seasons</th><th>Record</th><th class="r">Win %</th><th class="r">Pts / game</th><th class="r">Playoffs</th><th class="r">Finals</th><th>Titles</th></tr></thead>
+      <tbody>${R.managers.map(m => `<tr><td class="${m.active ? "" : "gone"}"><b>${esc(m.name)}</b></td><td class="r">${m.seasons}</td><td>${m.w}–${m.l}${m.t ? "–" + m.t : ""}</td><td class="r">${(100 * m.pct).toFixed(1)}</td><td class="r">${f1(m.ppg)}</td><td class="r">${m.playoffs}</td><td class="r">${m.finals}</td><td>${m.titles ? `<span class="chip loot">${m.titles}</span> <span class="vs">${esc(m.title_years.join(", "))}</span>` : ""}</td></tr>`).join("")}</tbody></table></div></div>
+    <div class="block"><h2>Head to head</h2>
+      <div class="pick"><label for="h2h-pick">Manager</label><select id="h2h-pick">${R.current.map(id => `<option value="${esc(id)}">${N(id)}</option>`).join("")}</select></div>
+      <div id="h2h-out"></div></div>
+    <div class="block"><h2>Single-game records</h2>
+      <div class="cols">
+        ${sideList("Highest scores", R.high)}
+        ${sideList("Lowest scores", R.low)}
+        ${gameList("Biggest blowouts", R.blowouts, g => "by " + f2(g.wp - g.lp))}
+        ${gameList("Closest games", R.closest, g => "by " + f2(g.wp - g.lp))}
+        ${gameList("Highest combined", R.shootouts, g => f2(g.wp + g.lp))}
+      </div></div>
+    <div class="block"><h2>Streaks and seasons</h2>
+      <div class="cols">
+        ${streak("Longest winning streaks", R.win_streaks)}
+        ${streak("Longest losing streaks", R.loss_streaks)}
+        <div class="block"><h3>Most points in a season</h3><div class="list"><ul class="plain">${R.best_seasons.map(s => `<li><div><b>${N(s.id)}</b><br><span class="vs">${s.season} ${esc(s.conf)} · ${s.w}–${s.l}</span></div><div class="num"><b>${f1(s.pf)}</b></div></li>`).join("")}</ul></div></div>
+        <div class="block"><h3>Best regular seasons</h3><div class="list"><ul class="plain">${R.best_records.map(s => `<li><div><b>${N(s.id)}</b><br><span class="vs">${s.season} ${esc(s.conf)} · ${f1(s.pf)} points</span></div><div class="num"><b>${s.w}–${s.l}</b></div></li>`).join("")}</ul></div></div>
+      </div></div>`;
+  const pick = document.getElementById("h2h-pick"), out = document.getElementById("h2h-out");
+  const draw = () => {
+    const rows = Object.entries(R.h2h[pick.value] || {}).map(([id, v]) => ({ id, w: v[0], l: v[1], t: v[2] })).sort((a, b) => (b.w + b.l + b.t) - (a.w + a.l + a.t) || b.w - a.w);
+    out.innerHTML = rows.length ? `<div class="scroll"><table><thead><tr><th>Opponent</th><th>Record</th><th class="r">Games</th><th></th></tr></thead><tbody>${rows.map(r => `<tr><td class="${R.current.includes(r.id) ? "" : "gone"}"><b>${N(r.id)}</b></td><td>${r.w}–${r.l}${r.t ? "–" + r.t : ""}</td><td class="r">${r.w + r.l + r.t}</td><td>${r.w > r.l ? '<span class="chip up">Leads</span>' : r.w < r.l ? '<span class="chip down">Trails</span>' : '<span class="chip">Level</span>'}</td></tr>`).join("")}</tbody></table></div>` : `<p class="note">No games on record yet.</p>`;
+  };
+  pick.addEventListener("change", draw); draw();
+}
+
+function show(tab) {
+  if (!["recap", "power", "conferences", "robber", "records"].includes(tab)) tab = "recap";
+  document.querySelectorAll("section.panel").forEach(p => p.hidden = p.id !== tab);
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+}
+document.getElementById("tabs").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  show(b.dataset.tab);
+  try { history.replaceState(null, "", "#" + b.dataset.tab); } catch (_) {}
+});
+
+document.getElementById("eyebrow").textContent = `${D.season} season · through week ${last}`;
+document.getElementById("meta").innerHTML = `Armadillo + Grizzly + Robber<br>Data from Sleeper, ${esc(D.built)}`;
+document.getElementById("foot").textContent = "Scores and rosters come from Sleeper's public API. Rankings, luck and robbery figures are calculated here and are not official league standings.";
+renderRecap(); renderPower(); renderConferences(); renderRobber(); renderRecords();
+show(location.hash.slice(1));
+</script>
+</body>
+</html>

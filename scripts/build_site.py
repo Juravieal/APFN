@@ -1,0 +1,330 @@
+"""Build site/index.html, the league hub, from data/raw (run pull_sleeper.py first).
+
+Computes the cross-conference power rankings and the Robber League ledger,
+then injects the result into site/template.html as JSON.
+"""
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+from records import build_records
+
+ROOT = Path(__file__).resolve().parent.parent
+RAW, SITE = ROOT / "data" / "raw", ROOT / "site"
+CONFERENCES = {"1388319888270970880": "Armadillo", "1388320595925557248": "Grizzly"}
+ROBBER = "1389735668468453376"
+FLEX = {"FLEX": {"RB", "WR", "TE"}, "SUPER_FLEX": {"QB", "RB", "WR", "TE"}, "REC_FLEX": {"WR", "TE"}}
+STEAL_FOLLOWUP_MS = 15 * 60 * 1000
+
+
+def load(rel):
+    return json.loads((RAW / rel).read_text(encoding="utf-8"))
+
+
+STATE = load("state.json")
+PLAYERS = load("players.json")
+WEEK_NOW = STATE["week"]
+DONE = list(range(1, WEEK_NOW))  # weeks with final scores
+
+
+def pname(pid):
+    p = PLAYERS.get(pid, {})
+    return p.get("full_name") or " ".join(filter(None, [p.get("first_name"), p.get("last_name")])) or pid
+
+
+def pinfo(pid):
+    p = PLAYERS.get(pid, {})
+    return {"name": pname(pid), "pos": p.get("position") or "", "nfl": p.get("team") or "FA"}
+
+
+def optimal(points, slots):
+    """Best possible lineup score from a roster's player points."""
+    pool = sorted(points.items(), key=lambda kv: -kv[1])
+    used, total = set(), 0.0
+    fixed = [s for s in slots if s not in FLEX and s != "BN"]
+    flex = [s for s in slots if s in FLEX]
+    for slot, ok in [(s, {s}) for s in fixed] + [(s, FLEX[s]) for s in flex]:
+        for pid, pts in pool:
+            if pid not in used and PLAYERS.get(pid, {}).get("position") in ok:
+                used.add(pid)
+                total += pts
+                break
+    return round(total, 2)
+
+
+def load_league(lid):
+    d = f"leagues/{lid}"
+    league = load(f"{d}/league.json")
+    users = {u["user_id"]: u for u in load(f"{d}/users.json")}
+    rosters = load(f"{d}/rosters.json")
+    teams = {}
+    for r in rosters:
+        u = users.get(r["owner_id"], {})
+        name = u.get("display_name") or f"Roster {r['roster_id']}"
+        s = r["settings"]
+        teams[r["roster_id"]] = {
+            "key": f"{lid}:{r['roster_id']}", "rid": r["roster_id"], "manager": name,
+            "team": (u.get("metadata") or {}).get("team_name") or f"Team {name}",
+            "w": s["wins"], "l": s["losses"], "t": s["ties"],
+            "pf": s["fpts"] + s.get("fpts_decimal", 0) / 100,
+            "pa": s.get("fpts_against", 0) + s.get("fpts_against_decimal", 0) / 100,
+            "waiver": s.get("waiver_position"), "weeks": [],
+        }
+    matchups = {}
+    for w in range(1, WEEK_NOW + 1):
+        ms = load(f"{d}/matchups_{w:02d}.json")
+        matchups[w] = {m["roster_id"]: m for m in ms}
+        if w not in DONE:
+            continue
+        for m in ms:
+            opp = next((o for o in ms if o["matchup_id"] == m["matchup_id"] and o["roster_id"] != m["roster_id"]), None)
+            pts = m["points"]
+            opts = opp["points"] if opp else None
+            teams[m["roster_id"]]["weeks"].append({
+                "week": w, "pts": pts, "opp": teams[opp["roster_id"]]["key"] if opp else None, "opp_pts": opts,
+                "res": None if opp is None else "W" if pts > opts else "L" if pts < opts else "T",
+                "best": optimal(m.get("players_points") or {}, league["roster_positions"]),
+            })
+    return {"league": league, "rosters": rosters, "teams": teams, "matchups": matchups, "dir": d}
+
+
+def add_all_play(teams):
+    """All-play record, expected wins and luck across the given pool of teams."""
+    n = len(teams)
+    for t in teams:
+        t.update(ap_w=0, ap_l=0, ap_t=0, xw=0.0)
+    for w in DONE:
+        scores = [(t, next(x["pts"] for x in t["weeks"] if x["week"] == w)) for t in teams]
+        for t, pts in scores:
+            wins = sum(1 for _, o in scores if o < pts)
+            ties = sum(1 for _, o in scores if o == pts) - 1
+            t["ap_w"] += wins
+            t["ap_t"] += ties
+            t["ap_l"] += n - 1 - wins - ties
+            t["xw"] += (wins + ties / 2) / (n - 1)
+    for t in teams:
+        g = len(t["weeks"]) or 1
+        total = t["ap_w"] + t["ap_l"] + t["ap_t"] or 1
+        actual = sum({"W": 1, "T": 0.5}.get(x["res"], 0) for x in t["weeks"])
+        t["ap_pct"] = round((t["ap_w"] + t["ap_t"] / 2) / total, 4)
+        t["luck"] = round(actual - t["xw"], 2)
+        t["xw"] = round(t["xw"], 2)
+        t["ppg"] = round(sum(x["pts"] for x in t["weeks"]) / g, 2)
+        best = sum(x["best"] for x in t["weeks"])
+        t["eff"] = round(100 * sum(x["pts"] for x in t["weeks"]) / best, 1) if best else None
+        t["left"] = round(best - sum(x["pts"] for x in t["weeks"]), 1)
+    teams.sort(key=lambda t: (-t["ap_pct"], -t["ppg"]))
+    for i, t in enumerate(teams, 1):
+        t["rank"] = i
+
+
+def upcoming(lg):
+    seen, out = set(), []
+    for m in lg["matchups"][WEEK_NOW].values():
+        if m["matchup_id"] is None or m["matchup_id"] in seen:
+            continue
+        seen.add(m["matchup_id"])
+        pair = [x["roster_id"] for x in lg["matchups"][WEEK_NOW].values() if x["matchup_id"] == m["matchup_id"]]
+        out.append([lg["teams"][r]["key"] for r in pair])
+    return out
+
+
+def awards(teams, week):
+    rows = [(t, next(x for x in t["weeks"] if x["week"] == week)) for t in teams]
+    games = [(t, x) for t, x in rows if x["res"] == "W"]
+    hi = max(rows, key=lambda r: r[1]["pts"])
+    lo = min(rows, key=lambda r: r[1]["pts"])
+    close = min(games, key=lambda r: r[1]["pts"] - r[1]["opp_pts"])
+    blow = max(games, key=lambda r: r[1]["pts"] - r[1]["opp_pts"])
+    bench = max(rows, key=lambda r: r[1]["best"] - r[1]["pts"])
+    unlucky = max((r for r in rows if r[1]["res"] == "L"), key=lambda r: r[1]["pts"])
+    return [
+        {"label": "High score", "team": hi[0]["key"], "value": f"{hi[1]['pts']:.2f}"},
+        {"label": "Low score", "team": lo[0]["key"], "value": f"{lo[1]['pts']:.2f}"},
+        {"label": "Closest win", "team": close[0]["key"], "value": f"by {close[1]['pts'] - close[1]['opp_pts']:.2f}",
+         "vs": close[1]["opp"]},
+        {"label": "Biggest blowout", "team": blow[0]["key"], "value": f"by {blow[1]['pts'] - blow[1]['opp_pts']:.2f}",
+         "vs": blow[1]["opp"]},
+        {"label": "Best score in a loss", "team": unlucky[0]["key"], "value": f"{unlucky[1]['pts']:.2f}",
+         "vs": unlucky[1]["opp"]},
+        {"label": "Most points left on the bench", "team": bench[0]["key"],
+         "value": f"{bench[1]['best'] - bench[1]['pts']:.1f}"},
+    ]
+
+
+def game_lines(lg, week):
+    """One line per game: winner, loser, scores and each side's top starter."""
+    out, seen = [], set()
+    for m in lg["matchups"][week].values():
+        if m["matchup_id"] is None or m["matchup_id"] in seen:
+            continue
+        seen.add(m["matchup_id"])
+        pair = sorted((x for x in lg["matchups"][week].values() if x["matchup_id"] == m["matchup_id"]),
+                      key=lambda x: -x["points"])
+        sides = []
+        for x in pair:
+            pts = x.get("players_points") or {}
+            star = max(x["starters"], key=lambda p: pts.get(p, 0))
+            sides.append({"team": lg["teams"][x["roster_id"]]["key"], "pts": x["points"],
+                          "star": pname(star), "star_pts": pts.get(star, 0)})
+        out.append(sides)
+    return sorted(out, key=lambda g: g[0]["pts"] - g[1]["pts"])
+
+
+def recap(leagues):
+    """Written recap for the last finished week, if content/recaps has one, plus the game lines."""
+    if not DONE:
+        return None
+    week = DONE[-1]
+    path = ROOT / "content" / "recaps" / f"{STATE['season']}-week-{week:02d}.json"
+    prose = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    return {"week": week, "leagues": [
+        {"name": name, **prose.get(name, {"headline": f"Week {week} results", "paragraphs": []}),
+         "games": game_lines(lg, week)} for name, lg in leagues]}
+
+
+def robber_section(lg):
+    d, teams, scoring = lg["dir"], lg["teams"], lg["league"]["scoring_settings"]
+    key = lambda rid: teams[rid]["key"]
+
+    def nfl_pts(pid, week):
+        s = load(f"nfl/stats_{STATE['season']}_{week:02d}.json").get(pid, {})
+        return round(sum(s.get(k, 0) * v for k, v in scoring.items()), 2)
+
+    tx = []
+    for w in range(1, WEEK_NOW + 1):
+        tx += [t for t in load(f"{d}/transactions_{w:02d}.json")
+               if t["type"] == "commissioner" and t["status"] == "complete"]
+    tx.sort(key=lambda t: t["created"])
+
+    def beat(winner, loser, week):
+        return any(x["week"] == week and x["res"] == "W" and x["opp"] == key(loser) for x in teams[winner]["weeks"])
+
+    steals = []
+    for t in tx:
+        adds, drops = t["adds"] or {}, t["drops"] or {}
+        for pid in set(adds) & set(drops):
+            thief, victim = adds[pid], drops[pid]
+            if thief == victim:
+                continue
+            week = next((w for w in reversed(DONE) if w <= t["leg"] and beat(thief, victim, w)), t["leg"])
+            # The thief has no bench, so the commissioner drops a player to make room.
+            released = []
+            for f in tx:
+                if not 0 <= f["created"] - t["created"] <= STEAL_FOLLOWUP_MS or f is t:
+                    continue
+                fa, fd = f["adds"] or {}, f["drops"] or {}
+                if set(fa) & set(fd):
+                    continue
+                released += [p for p, r in fd.items() if r == thief]
+                released = [p for p in released if not (p in fa and fa[p] == thief)]
+            held = [w for w in DONE if w > week and pid in (lg["matchups"][w][thief].get("players") or [])]
+            after = [w for w in DONE if w > week]
+            loot = round(sum((lg["matchups"][w][thief]["players_points"] or {}).get(pid, 0) for w in held), 2)
+            started = sum(1 for w in held if pid in (lg["matchups"][w][thief].get("starters") or []))
+            gave = released[0] if released else None
+            gave_pts = round(sum(nfl_pts(gave, w) for w in held), 2) if gave else 0.0
+            game = next(x for x in teams[thief]["weeks"] if x["week"] == week)
+            steals.append({
+                "week": week, "thief": key(thief), "victim": key(victim), "player": pinfo(pid), "pid": pid,
+                "score": [game["pts"], game["opp_pts"]], "released": pinfo(gave) if gave else None,
+                "held_weeks": len(held), "started": started, "loot": loot, "released_pts": gave_pts,
+                "net": round(loot - gave_pts, 2), "lost": round(sum(nfl_pts(pid, w) for w in after), 2),
+            })
+    holder = {p: key(r["roster_id"]) for r in lg["rosters"] for p in (r["players"] or [])}
+    for s in steals:
+        s["holder"] = holder.get(s["pid"])
+
+    # Completed games with no steal recorded yet.
+    ppg = {}
+    for r in lg["rosters"]:
+        for pid in r["players"] or []:
+            played = [nfl_pts(pid, w) for w in DONE
+                      if load(f"nfl/stats_{STATE['season']}_{w:02d}.json").get(pid, {}).get("gp")]
+            ppg[pid] = (round(sum(played) / len(played), 1) if played else 0.0, len(played))
+    owed = []
+    for w in DONE:
+        for t in teams.values():
+            g = next(x for x in t["weeks"] if x["week"] == w)
+            if g["res"] != "W" or any(s["week"] == w and s["thief"] == t["key"] for s in steals):
+                continue
+            loser = next(r for r in lg["rosters"] if key(r["roster_id"]) == g["opp"])
+            targets = sorted(loser["players"] or [], key=lambda p: -ppg[p][0])[:5]
+            owed.append({"week": w, "winner": t["key"], "loser": g["opp"], "score": [g["pts"], g["opp_pts"]],
+                         "targets": [{**pinfo(p), "ppg": ppg[p][0], "games": ppg[p][1]} for p in targets]})
+
+    playing = {x for g in load(f"nfl/schedule_{STATE['season']}.json") if g["week"] == WEEK_NOW
+               for x in (g["home"], g["away"])}
+    bench = []
+    for r in lg["rosters"]:
+        for pid in set(r["players"] or []) - set(r["starters"] or []) - set(r.get("reserve") or []):
+            p = PLAYERS.get(pid, {})
+            bye = bool(p.get("team")) and p["team"] not in playing
+            bench.append({"team": key(r["roster_id"]), **pinfo(pid), "injury": p.get("injury_status") or "",
+                          "bye": bye, "flag": not bye and not p.get("injury_status")})
+
+    summary = {}
+    for t in teams.values():
+        made = [s for s in steals if s["thief"] == t["key"]]
+        lost = [s for s in steals if s["victim"] == t["key"]]
+        summary[t["key"]] = {"steals": len(made), "robbed": len(lost),
+                             "gained": round(sum(s["net"] for s in made), 1),
+                             "lost": round(sum(s["lost"] for s in lost), 1)}
+        summary[t["key"]]["net"] = round(summary[t["key"]]["gained"] - summary[t["key"]]["lost"], 1)
+    return {"steals": steals, "owed": owed, "bench": bench, "summary": summary}
+
+
+def compute():
+    confs = {lid: load_league(lid) for lid in CONFERENCES}
+    pool = []
+    for lid, lg in confs.items():
+        for t in lg["teams"].values():
+            t["conf"] = CONFERENCES[lid]
+            pool.append(t)
+    add_all_play(pool)
+
+    names = list(CONFERENCES.values())
+    a, b = ([t for t in pool if t["conf"] == n] for n in names)
+    cross = {n: 0.0 for n in names}
+    for w in DONE:
+        for ta in a:
+            for tb in b:
+                pa = next(x["pts"] for x in ta["weeks"] if x["week"] == w)
+                pb = next(x["pts"] for x in tb["weeks"] if x["week"] == w)
+                cross[names[0]] += 1 if pa > pb else 0.5 if pa == pb else 0
+                cross[names[1]] += 1 if pb > pa else 0.5 if pa == pb else 0
+
+    rob = load_league(ROBBER)
+    rob_teams = list(rob["teams"].values())
+    for t in rob_teams:
+        t["conf"] = "Robber"
+    add_all_play(rob_teams)
+
+    data = {
+        "season": STATE["season"], "week_now": WEEK_NOW, "done": DONE,
+        "built": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "teams": pool, "conferences": names,
+        "playoff_teams": next(iter(confs.values()))["league"]["settings"]["playoff_teams"],
+        "cross": cross, "conf_ppg": {n: round(sum(t["ppg"] for t in pool if t["conf"] == n) / 10, 2) for n in names},
+        "awards": awards(pool, DONE[-1]) if DONE else [],
+        "recap": recap([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)]),
+        "upcoming": {CONFERENCES[lid]: upcoming(lg) for lid, lg in confs.items()},
+        "records": build_records(),
+        "robber": {"teams": rob_teams, "upcoming": upcoming(rob),
+                   "playoff_teams": rob["league"]["settings"]["playoff_teams"], **robber_section(rob)},
+    }
+    return data
+
+
+def main():
+    data = compute()
+    html = (SITE / "template.html").read_text(encoding="utf-8")
+    blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+    (SITE / "index.html").write_text(html.replace("/*__DATA__*/null", blob), encoding="utf-8")
+    (SITE / "data.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    print("built site/index.html through week", DONE[-1] if DONE else 0,
+          "| steals", len(data["robber"]["steals"]), "| owed", len(data["robber"]["owed"]))
+
+
+if __name__ == "__main__":
+    main()

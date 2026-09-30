@@ -1,0 +1,15 @@
+# Everything under data/ is re-downloaded from Sleeper on each run.
+data/
+
+# Generated pages. The public ones are built and deployed by GitHub Actions.
+site/index.html
+site/live.html
+site/data.json
+
+# Private: personal lineup and waiver advice. Never published.
+site/advisor.html
+site/advisor.json
+
+__pycache__/
+_site/
+.claude/

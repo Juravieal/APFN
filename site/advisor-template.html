@@ -1,0 +1,154 @@
+<title>APFN War Room</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one tab per team; this week's calls first, then roster, pickups, trades. Same system as the League Hub. */
+:root {
+  --bg: #f2f4f6; --surface: #ffffff; --sunken: #e7ebef; --line: #d3dae1;
+  --fg: #15202b; --fg2: #4a5866; --fg3: #6f7d8b;
+  --accent: #1f5a8a; --accent-soft: #d9e6f2;
+  --loot: #8f5a08; --loot-soft: #f6e8cc;
+  --win: #1e6b43; --win-soft: #dcefe4; --loss: #a23a2a; --loss-soft: #f6dfda;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #182029; --sunken: #121920; --line: #2a3541;
+  --fg: #e7edf2; --fg2: #aab6c2; --fg3: #8492a0;
+  --accent: #7db4e6; --accent-soft: #1d3347;
+  --loot: #e5b155; --loot-soft: #3a2e17;
+  --win: #6fcb97; --win-soft: #173326; --loss: #f0907f; --loss-soft: #3d201c;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #182029; --sunken: #121920; --line: #2a3541;
+  --fg: #e7edf2; --fg2: #aab6c2; --fg3: #8492a0;
+  --accent: #7db4e6; --accent-soft: #1d3347;
+  --loot: #e5b155; --loot-soft: #3a2e17;
+  --win: #6fcb97; --win-soft: #173326; --loss: #f0907f; --loss-soft: #3d201c;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance; line-height: 1.05; }
+h1 { font-size: 40px; } h2 { font-size: 24px; }
+h3 { font-size: 17px; font-weight: 600; letter-spacing: .05em; color: var(--fg2); }
+p { margin: 0; }
+.note { color: var(--fg2); max-width: 68ch; }
+header.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 24px; border-bottom: 3px solid var(--fg); padding-bottom: 12px; }
+header.top .meta { color: var(--fg2); font-size: 13px; text-align: right; }
+.eyebrow { font-family: var(--display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-size: 14px; }
+nav.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+nav.tabs button { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--fg2); border-radius: 4px; cursor: pointer; }
+nav.tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+section.panel { display: flex; flex-direction: column; gap: 24px; }
+.block { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tile .k { font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); }
+.tile .v { font: 700 26px var(--display); line-height: 1.1; overflow-wrap: anywhere; }
+.tile .s { color: var(--fg2); font-size: 13px; }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); background: var(--sunken); }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+tr.group td { background: var(--sunken); font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--fg2); }
+.vs { color: var(--fg3); font-size: 12px; }
+.chip { display: inline-block; font: 600 12px var(--display); letter-spacing: .08em; text-transform: uppercase; padding: 1px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--fg2); }
+.chip.up { background: var(--win-soft); border-color: transparent; color: var(--fg); }
+.chip.down { background: var(--loss-soft); border-color: transparent; color: var(--fg); }
+.chip.loot { background: var(--loot-soft); border-color: transparent; color: var(--fg); }
+.pos { color: var(--win); } .neg { color: var(--loss); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 20px; }
+ul.plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+ul.plain li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+ul.plain li:last-child { border-bottom: 0; }
+ul.plain li > div { min-width: 0; overflow-wrap: anywhere; }
+dl.key { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; color: var(--fg2); font-size: 13px; max-width: 78ch; }
+dl.key dt { font-weight: 600; color: var(--fg); } dl.key dd { margin: 0; }
+footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div><div class="eyebrow" id="eyebrow"></div><h1>APFN War Room</h1></div>
+    <div class="meta" id="meta"></div>
+  </header>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+  <div id="panels"></div>
+  <div class="block">
+    <h3>How to read the numbers</h3>
+    <dl class="key">
+      <dt>Proj</dt><dd>Sleeper's projection for this week under this league's scoring.</dd>
+      <dt>xPts</dt><dd>What this season's workload (carries, targets, red-zone work) normally produces, based on 2024 and 2025 games.</dd>
+      <dt>Avg</dt><dd>Actual points per game this season.</dd>
+      <dt>Trend</dt><dd>Avg minus xPts. Well above means scoring more than the workload supports; well below means the points should come.</dd>
+      <dt>Start</dt><dd>This week's expectation: mostly Proj, tempered by xPts and Avg.</dd>
+      <dt>Value</dt><dd>Rest-of-season weekly expectation: the next four weeks of projections, xPts and Avg.</dd>
+    </dl>
+  </div>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const n1 = v => v == null ? '<span class="vs">–</span>' : Number(v).toFixed(1);
+const signed = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1);
+const who = p => `<b>${esc(p.name)}</b> <span class="vs">${esc(p.pos)} · ${esc(p.nfl)}${p.injury ? " · " + esc(p.injury) : ""}</span>`;
+const trend = h => h == null ? "" : h >= 2.5 ? `<span class="chip down" title="Scoring above workload">Hot ${signed(h)}</span>` : h <= -2.5 ? `<span class="chip up" title="Workload says more is coming">Due ${signed(h)}</span>` : `<span class="vs">${signed(h)}</span>`;
+const snaps = p => p.snaps.map(s => s == null ? "–" : s + "%").join(" / ");
+const byes = p => p.byes.length ? "Wk " + p.byes.join(", ") : "";
+
+function statRow(p, lead, tail = "") {
+  return `<tr><td>${lead}</td><td>${who(p)}</td><td>${esc(p.opp)}</td><td class="r">${n1(p.proj)}</td><td class="r">${n1(p.xpts)}</td><td class="r">${n1(p.avg)}</td><td>${trend(p.heat)}</td><td class="r"><b>${n1(p.start)}</b></td><td class="r"><b>${n1(p.value)}</b></td><td>${snaps(p)}</td><td class="r">${n1(p.opps)}</td>${tail}</tr>`;
+}
+const head = (first, last) => `<thead><tr><th>${first}</th><th>Player</th><th>Wk ${D.week}</th><th class="r">Proj</th><th class="r">xPts</th><th class="r">Avg</th><th>Trend</th><th class="r">Start</th><th class="r">Value</th><th>Snap share by week</th><th class="r">Carries + targets</th>${last}</tr></thead>`;
+
+function panel(t, i) {
+  const edge = t.my_total - t.opp_total;
+  const swaps = t.swaps.length ? `<ul class="plain">${t.swaps.map(s => `<li><div>Start ${who(s.start)}${s.sit ? ` over ${who(s.sit)}` : ""}</div><div><b>${s.sit ? signed(s.start.start - s.sit.start) : n1(s.start.start)}</b></div></li>`).join("")}</ul>` : `<p class="note">The lineup already set is the best one on these numbers.</p>`;
+  const adds = Object.entries(t.adds).map(([pos, list]) => `<tr class="group"><td colspan="12">${esc(pos)}</td></tr>` + list.map(f => statRow(f, "", `<td>${f.drop ? `${esc(f.drop)} <b class="${f.gain > 0 ? "pos" : "neg"}">${signed(f.gain)}</b>` : ""}</td>`)).join("")).join("");
+  const robber = t.no_bench ? `
+    <div class="cols">
+      <div class="block"><h2>If you win: steal board</h2><p class="note">${esc(t.opponent)}'s roster by rest-of-season value.</p>
+        <ul class="plain">${t.steal_board.map(p => `<li><div>${who(p)}</div><div><b>${n1(p.value)}</b></div></li>`).join("")}</ul></div>
+      <div class="block"><h2>If you lose: most exposed</h2><p class="note">Your three most valuable players, the likely targets.</p>
+        <ul class="plain">${t.at_risk.map(p => `<li><div>${who(p)}</div><div><b>${n1(p.value)}</b></div></li>`).join("")}</ul>
+        <h3>Roster shape</h3>
+        <p class="note">No bench, so count matters. You hold ${Object.entries(t.shape.have).map(([k, v]) => `${v} ${k}`).join(", ")}. Slots: ${Object.entries(t.shape.need).map(([k, v]) => `${v} ${k}`).join(", ")}.</p></div>
+    </div>` : "";
+  return `<section class="panel" id="team${i}" role="tabpanel" ${i ? "hidden" : ""}>
+    <div class="tiles">
+      <div class="tile"><span class="k">Week ${D.week} vs ${esc(t.opponent)}</span><span class="v">${n1(t.my_total)} – ${n1(t.opp_total)}</span><span class="s">Best lineups on the Start number. ${edge >= 0 ? "You are favoured by " : "You trail by "}${Math.abs(edge).toFixed(1)}.</span></div>
+      <div class="tile"><span class="k">Lineup as set</span><span class="v">${n1(t.current_total)}</span><span class="s">${t.swaps.length ? `${t.swaps.length} change${t.swaps.length > 1 ? "s" : ""} would add ${(t.my_total - t.current_total).toFixed(1)}.` : "Nothing to change."}</span></div>
+      <div class="tile"><span class="k">Record</span><span class="v">${esc(t.record)}</span><span class="s">Waiver position ${esc(t.waiver)}</span></div>
+    </div>
+    <div class="block"><h2>Lineup calls</h2>${swaps}</div>
+    <div class="block"><h2>Your roster</h2>
+      <div class="scroll"><table>${head("Slot", "<th>Byes ahead</th>")}<tbody>${t.roster.map(p => statRow(p, esc(p.where), `<td>${byes(p)}</td>`)).join("")}</tbody></table></div></div>
+    ${robber}
+    <div class="block"><h2>Best available</h2>
+      <p class="note">Unowned players by rest-of-season value. The last column is the weakest player you hold at that position and the weekly gain from swapping. Sleeper does not show which of these are on waivers and which are free agents.</p>
+      <div class="scroll"><table>${head("", "<th>Instead of</th>")}<tbody>${adds}</tbody></table></div></div>
+    <div class="cols">
+      <div class="block"><h2>Trade for</h2><p class="note">Owned elsewhere and scoring below their workload, so the price should be low.</p>
+        ${t.buy.length ? `<ul class="plain">${t.buy.map(p => `<li><div>${who(p)}<br><span class="vs">${esc(p.owner)} · avg ${n1(p.avg)} on a ${n1(p.xpts)} workload</span></div><div><b>${n1(p.value)}</b></div></li>`).join("")}</ul>` : `<p class="note">Nobody stands out.</p>`}</div>
+      <div class="block"><h2>Sell while hot</h2><p class="note">Yours, and scoring above what the workload supports.</p>
+        ${t.sell.length ? `<ul class="plain">${t.sell.map(p => `<li><div>${who(p)}<br><span class="vs">avg ${n1(p.avg)} on a ${n1(p.xpts)} workload</span></div><div><b>${signed(p.heat)}</b></div></li>`).join("")}</ul>` : `<p class="note">Nobody is running far ahead of their workload.</p>`}</div>
+    </div>
+  </section>`;
+}
+
+document.getElementById("eyebrow").textContent = `${D.season} season · week ${D.week} · private`;
+document.getElementById("meta").innerHTML = `Data from Sleeper<br>${esc(D.built)}`;
+document.getElementById("foot").textContent = "Projections are Sleeper's. xPts, Start and Value are calculated here from Sleeper's stats. Treat them as a second opinion.";
+document.getElementById("tabs").innerHTML = D.teams.map((t, i) => `<button role="tab" data-i="${i}" aria-selected="${i === 0}">${esc(t.kind)}</button>`).join("");
+document.getElementById("panels").innerHTML = D.teams.map(panel).join("");
+document.getElementById("tabs").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll("section.panel").forEach((p, i) => p.hidden = String(i) !== b.dataset.i);
+  document.querySelectorAll("#tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+});
+</script>
