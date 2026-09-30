@@ -11,6 +11,8 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+import tournament
+
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 CURRENT = {"1388319888270970880": "Armadillo", "1388320595925557248": "Grizzly"}
@@ -26,6 +28,41 @@ def _seasons():
     state = _load(RAW / "state.json")
     out += [(name, int(state["season"]), RAW / "leagues" / lid) for lid, name in CURRENT.items()]
     return sorted(out, key=lambda s: (s[1], s[0])), state
+
+
+def past_tournaments(alias, names, official):
+    """Replay the league tournament for every finished season."""
+    out = []
+    by_season = defaultdict(list)
+    for x in _load(RAW / "history" / "index.json") or []:
+        by_season[int(x["season"])].append(x)
+    for season, leagues in sorted(by_season.items(), reverse=True):
+        feed = []
+        for x in leagues:
+            d = RAW / "history" / x["league_id"]
+            owner = {r["roster_id"]: alias.get(r["owner_id"], r["owner_id"]) for r in _load(d / "rosters.json")}
+            feed.append((x["conference"], owner, {w: _load(d / f"matchups_{w:02d}.json") or [] for w in range(1, 19)}))
+        teams = tournament.teams_from_matchups(feed)
+        seeds = official.get(str(season))
+        if seeds:  # the commissioner's own table decides who played whom
+            key_of = {names.get(t["owner"], "").lower(): k for k, t in teams.items()}
+            fixed = [key_of[n.lower()] for n in seeds if n.lower() in key_of]
+            fixed += [k for k in tournament.standings(teams, tournament.SEED_WEEK) if k not in fixed]
+            result = tournament.season(teams, 17, order=fixed)
+        else:
+            result = tournament.season(teams, 17)
+        owner = lambda k: teams[k]["owner"]
+        swap = lambda g: {**g, "hi": owner(g["hi"]), "lo": owner(g["lo"]),
+                          "winner": owner(g["winner"]) if g["winner"] else None,
+                          "loser": owner(g["loser"]) if g["loser"] else None}
+        out.append({
+            "season": season, "official_seeds": bool(seeds),
+            "champion": owner(result["champion"]) if result["champion"] else None,
+            "seeds": [{**s, "key": owner(s["key"]), "conf": teams[s["key"]]["conf"]} for s in result["seeds"]],
+            "title": [{**r, "games": [swap(g) for g in r["games"]]} for r in result["title"]],
+            "consolation": [{**r, "games": [swap(g) for g in r["games"]]} for r in result["consolation"]],
+        })
+    return out
 
 
 def build_records():
@@ -153,6 +190,7 @@ def build_records():
     return {
         "names": names, "seasons": sorted({s for _, s, _ in seasons}), "games": len(games),
         "league_champions": league_champs,
+        "tournaments": past_tournaments(alias, names, history.get("official_seeds", {})),
         "champions": sorted(champions, key=lambda c: (-c["season"], c["conf"])),
         "managers": managers,
         "high": sorted(sides, key=lambda s: -s["pts"])[:10],

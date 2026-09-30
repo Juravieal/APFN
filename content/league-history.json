@@ -1,5 +1,5 @@
 {
-  "_about": "League history that Sleeper cannot know, maintained by hand from the commissioner's all-time spreadsheet. 'same_person' folds earlier Sleeper accounts into the account a manager is known by now. 'league_champions' is the commissioner's Hall of Champions, by season.",
+  "_about": "League history that Sleeper cannot know, maintained by hand from the commissioner's all-time spreadsheet. 'same_person' folds earlier Sleeper accounts into the account a manager is known by now. 'league_champions' is the commissioner's Hall of Champions, by season. 'official_seeds' is the commissioner's final week-14 league table where he published one; it overrides the table rebuilt from Sleeper when replaying that season's brackets.",
   "same_person": [
     {
       "known_as": "Wt8737",
@@ -30,5 +30,29 @@
     "2023": "queens22",
     "2024": "Jessicoot",
     "2025": "TheJoker10"
+  },
+  "official_seeds": {
+    "2024": [
+      "TheBread",
+      "queens22",
+      "kbartelt07",
+      "Nardlet8",
+      "ArmedRodgery21",
+      "Wt8737",
+      "Jessicoot",
+      "chookonthecoast",
+      "TheJoker10",
+      "Revoke",
+      "adamgum",
+      "Shanzo43",
+      "givethemtheD",
+      "coachrockwood",
+      "jcconnor",
+      "seachicken22",
+      "Madcans",
+      "MGuinness92",
+      "Robo1189",
+      "vpettijohnjr"
+    ]
   }
 }

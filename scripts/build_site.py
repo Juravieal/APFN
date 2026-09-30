@@ -4,9 +4,11 @@ Computes the cross-conference power rankings and the Robber League ledger,
 then injects the result into site/template.html as JSON.
 """
 import json
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+import tournament
 from records import build_records
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -274,6 +276,70 @@ def robber_section(lg):
     return {"steals": steals, "owed": owed, "bench": bench, "summary": summary}
 
 
+def weeks_final():
+    """Weeks whose NFL games have all finished (can be ahead of Sleeper's week counter)."""
+    games = defaultdict(list)
+    for g in load(f"nfl/schedule_{STATE['season']}.json"):
+        games[g["week"]].append(g["status"])
+    return [w for w, st in sorted(games.items()) if w <= WEEK_NOW and st and all(s == "complete" for s in st)]
+
+
+def robber_waivers(rob):
+    """Apply the house rule to the Robber League waiver order and keep a record of it.
+
+    Rule: after each week, that week's losers move ahead of its winners, each group
+    keeping its current order. The order is snapshotted once, when the week's games end,
+    so later waiver claims don't disturb it. content/robber-waivers.json is committed by
+    the daily build."""
+    path = ROOT / "content" / "robber-waivers.json"
+    store = json.loads(path.read_text(encoding="utf-8"))
+    name = {r["roster_id"]: rob["teams"][r["roster_id"]]["manager"] for r in rob["rosters"]}
+    now = [name[r["roster_id"]] for r in sorted(rob["rosters"], key=lambda r: r["settings"].get("waiver_position") or 99)]
+    finals = weeks_final()
+    if finals and str(finals[-1]) not in store["weeks"]:
+        week = finals[-1]
+        rows = load(f"leagues/{ROBBER}/matchups_{week:02d}.json")
+        by = defaultdict(list)
+        for m in rows:
+            by[m["matchup_id"]].append(m)
+        losers = set()
+        for pair in by.values():
+            if len(pair) == 2 and pair[0]["points"] != pair[1]["points"]:
+                losers.add(name[min(pair, key=lambda m: m["points"])["roster_id"]])
+        if losers:
+            store["weeks"][str(week)] = {"source": "automatic", "before": now,
+                                         "after": [n for n in now if n in losers] + [n for n in now if n not in losers]}
+            path.write_text(json.dumps(store, indent=2) + "\n", encoding="utf-8")
+    week = max(store["weeks"], key=int)
+    entry = store["weeks"][week]
+    return {"week": int(week), "source": entry["source"], "before": entry["before"], "after": entry["after"],
+            "now": now, "matches": now == entry["after"]}
+
+
+def league_season(confs):
+    """League table, league games and the league tournament for the current season."""
+    feed = [(lid, {r["roster_id"]: r["owner_id"] for r in lg["rosters"]},
+             {w: load(f"leagues/{lid}/matchups_{w:02d}.json") for w in range(1, WEEK_NOW + 1)})
+            for lid, lg in confs.items()]
+    teams = tournament.teams_from_matchups(feed)
+    key_of = {t["manager"].lower(): t["key"] for lg in confs.values() for t in lg["teams"].values()}
+    path = ROOT / "content" / f"league-schedule-{STATE['season']}.json"
+    schedule, unknown = {}, []
+    if path.exists():
+        for week, games in json.loads(path.read_text(encoding="utf-8"))["weeks"].items():
+            for a, b in games:
+                if a.lower() in key_of and b.lower() in key_of:
+                    schedule.setdefault(int(week), []).append((key_of[a.lower()], key_of[b.lower()]))
+                else:
+                    unknown += [n for n in (a, b) if n.lower() not in key_of]
+    if unknown:
+        print("league schedule: unknown managers", sorted(set(unknown)))
+    done = DONE[-1] if DONE else 0
+    result = tournament.season(teams, done, schedule)
+    result["has_schedule"] = bool(schedule)
+    return result
+
+
 def commissioner(leagues, robber):
     """What the commissioner acts on each week. Everything here is public Sleeper data;
     the PIN on the tab only keeps it out of everyone else's way."""
@@ -373,6 +439,8 @@ def compute():
         "robber": {"teams": rob_teams, "upcoming": upcoming(rob),
                    "playoff_teams": rob["league"]["settings"]["playoff_teams"], **robber_section(rob)},
     }
+    data["league"] = league_season(confs)
+    data["robber"]["waiver_rule"] = robber_waivers(rob)
     data["commish"] = commissioner([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)],
                                    data["robber"])
     return data

@@ -1,0 +1,10 @@
+{
+  "_about": "Robber League waiver order, one entry per finished week. 'before' is Sleeper's order when the week's games ended; 'after' applies the house rule: that week's losers move ahead of its winners, each group keeping its order. The daily build adds a new week automatically; week 3 is the commissioner's own table.",
+  "weeks": {
+    "3": {
+      "source": "commissioner",
+      "before": ["queens22", "kbartelt07", "adamgum", "ArmedRodgery21", "vpettijohnjr", "thatguyPegleg", "cartercole", "Juravieal", "Ghaztyz", "Dfiasco0"],
+      "after": ["adamgum", "ArmedRodgery21", "vpettijohnjr", "thatguyPegleg", "cartercole", "queens22", "kbartelt07", "Juravieal", "Ghaztyz", "Dfiasco0"]
+    }
+  }
+}

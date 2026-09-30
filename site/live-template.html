@@ -113,7 +113,8 @@ async function setup() {
       return [r.roster_id, { manager: mgr, team: (o.metadata || {}).team_name || "Team " + mgr, rec: `${r.settings.wins}-${r.settings.losses}`, wins: r.settings.wins }]; }));
     return { ...L, scoring: league.scoring_settings, teams, games: [] };
   }));
-  document.getElementById("tabs").innerHTML = S.leagues.map((L, i) => `<button role="tab" data-i="${i}" aria-selected="${i === 0}">${esc(L.name)}</button>`).join("");
+  document.getElementById("tabs").innerHTML = S.leagues.map((L, i) => `<button role="tab" data-i="${i}" aria-selected="${i === 0}">${esc(L.name)}</button>`).join("")
+    + (CFG.league_games.length ? `<button role="tab" data-i="${S.leagues.length}" aria-selected="false">League games</button>` : "");
 }
 
 function gameState(nfl) { const s = S.status[nfl]; return !s ? "none" : s === "complete" ? "done" : s === "pre_game" ? "todo" : "live"; }
@@ -136,6 +137,7 @@ async function refresh() {
   sched.filter(g => g.week === S.week).forEach(g => { S.status[g.home] = g.status; S.status[g.away] = g.status; });
   await Promise.all(S.leagues.map(async L => {
     const ms = await get(`${API}/league/${L.id}/matchups/${S.week}`), by = {};
+    L.sides = Object.fromEntries(ms.map(m => [m.roster_id, sideOf(L, m)]));
     ms.filter(m => m.matchup_id != null).forEach(m => (by[m.matchup_id] ||= []).push(m));
     L.games = Object.values(by).filter(p => p.length === 2).map(p => {
       const [a, b] = p.map(m => sideOf(L, m)), left = a.left + b.left;
@@ -169,7 +171,34 @@ function lineup(s) {
   return `<table><tbody>${s.rows.map(r => `<tr><td><b>${esc(r.name)}</b> <span class="vs">${esc(r.pos)} ${esc(r.nfl)}</span><br><span class="st ${r.st === "live" ? "on" : ""}">${{ done: "Final", live: "Playing", todo: "Yet to play", none: "No game" }[r.st]}${r.st !== "done" && r.st !== "none" ? " · proj " + f1(r.proj) : ""}</span></td><td class="r"><b>${f1(r.now)}</b></td></tr>`).join("")}</tbody></table>`;
 }
 
+function pair(a, b) {
+  const left = a.left + b.left;
+  const pa = left === 0 ? (a.pts > b.pts ? 1 : a.pts < b.pts ? 0 : 0.5) : phi((a.exp - b.exp) / (7 * Math.sqrt(left)));
+  return { a, b, pa, left };
+}
+function gameCard(g, L, extra) {
+  const lead = g.a.pts === g.b.pts ? null : g.a.pts > g.b.pts ? g.a : g.b;
+  const side = (s, p, tag) => `<div class="side ${lead && lead !== s ? "behind" : ""}"><div><div class="name">${esc(s.t.team)}</div><span class="vs">${tag ? esc(tag) + " · " : ""}${esc(s.t.manager)} · ${s.t.rec}</span></div><div class="pts">${f2(s.pts)}</div>
+    <div class="sub">Projected ${f1(s.exp)} · ${g.left === 0 ? "all players done" : `${s.todo} to play${s.live ? `, ${s.live} playing` : ""}`} · win chance ${Math.round(100 * p)}%</div></div>`;
+  const fav = g.pa >= 0.5 ? g.a : g.b;
+  return `<div class="gamecard">${extra.label ? `<div class="foot"><span class="chip ${extra.hot ? "loot" : ""}">${esc(extra.label)}</span></div>` : ""}${side(g.a, g.pa, extra.aTag)}<div class="prob" title="Win chance"><i style="flex:${Math.max(g.pa, 0.02)}"></i><i style="flex:${Math.max(1 - g.pa, 0.02)}"></i></div>${side(g.b, 1 - g.pa, extra.bTag)}
+    <div class="foot"><span>${g.left === 0 ? `Final: ${esc((lead || fav).t.manager)} wins by ${f2(Math.abs(g.a.pts - g.b.pts))}` : `${esc(fav.t.manager)} by ${f1(Math.abs(g.a.exp - g.b.exp))} projected`}</span>
+    ${g.a.live || g.b.live ? '<span class="chip live">Live</span>' : ""}${L && L.robber ? `<span class="chip loot">${esc((g.left === 0 ? lead || fav : fav).t.manager)} robs</span>` : ""}</div>
+    <details data-key="${extra.key}"><summary>Lineups</summary><div class="lineups">${lineup(g.a)}${lineup(g.b)}</div></details></div>`;
+}
+function renderLeagueGames() {
+  const find = key => { const [lid, rid] = key.split(":"); const L = S.leagues.find(x => x.id === lid); return L && L.sides ? L.sides[rid] : null; };
+  const games = CFG.league_games.map(x => ({ x, a: find(x.a), b: find(x.b) })).filter(g => g.a && g.b);
+  document.getElementById("eyebrow").textContent = `${S.season} season · week ${S.week} · league games`;
+  document.getElementById("alerts").innerHTML = `<div class="alert"><span class="k">League games</span><span>Cross-conference games that count in the combined league table${games.some(g => /seed/.test(g.x.a_tag)) ? " and the league tournament" : ""}, listed in order of importance.</span></div>`;
+  document.getElementById("games").innerHTML = games.map((g, i) => gameCard(pair(g.a, g.b), null,
+    { label: g.x.label, hot: i === 0, aTag: g.x.a_tag, bTag: g.x.b_tag, key: `lg-${g.x.a}` })).join("") || "<p>No league games this week.</p>";
+  document.querySelectorAll("details").forEach(d => { d.open = opened.has(d.dataset.key); d.addEventListener("toggle", () => d.open ? opened.add(d.dataset.key) : opened.delete(d.dataset.key)); });
+  tick();
+}
+
 function render() {
+  if (S.tab >= S.leagues.length) return renderLeagueGames();
   const L = S.leagues[S.tab];
   const anyLive = L.games.some(g => g.a.live || g.b.live), allDone = L.games.every(g => g.left === 0);
   document.getElementById("eyebrow").textContent = `${S.season} season · week ${S.week} · ${allDone ? "final" : anyLive ? "games in progress" : "waiting for kickoff"}`;

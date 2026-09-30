@@ -126,6 +126,22 @@ nav.tabs button.locked::after { content: ""; display: inline-block; width: 9px; 
 .chip.warn { background: var(--loot-soft); border-color: transparent; color: var(--fg); }
 .chip.bad { background: var(--loss-soft); border-color: transparent; color: var(--fg); }
 .chip.good { background: var(--win-soft); border-color: transparent; color: var(--fg); }
+.bracket { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+.bracket .round { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.match { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
+.match .lab { font: 600 12px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); padding: 6px 10px 0; }
+.match .row { display: grid; grid-template-columns: 2.2em minmax(0, 1fr) auto; gap: 8px; padding: 4px 10px; align-items: baseline; }
+.match .row:last-child { padding-bottom: 8px; }
+.match .row .s { color: var(--fg3); font-variant-numeric: tabular-nums; }
+.match .row .n { overflow-wrap: anywhere; }
+.match .row.won .n, .match .row.won .p { font-weight: 700; }
+.match .row.lost { color: var(--fg2); }
+.match .p { font-variant-numeric: tabular-nums; }
+details.season { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+details.season > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; }
+details.season > div { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+tr.cut16 td { border-bottom: 2px dotted var(--fg3); }
+.gotw { background: var(--loot-soft); }
 footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
 a.jump:hover { background: var(--accent-soft); }
@@ -238,8 +254,37 @@ function standings(teams, cut) {
 }
 const games = list => `<div class="list"><ul class="plain">${list.map(([x, y]) => `<li><div><b>${esc(T[x].team)}</b> <span class="vs">#${T[x].rank} · ${rec(T[x])}</span></div><div style="text-align:right"><b>${esc(T[y].team)}</b> <span class="vs">#${T[y].rank} · ${rec(T[y])}</span></div></li>`).join("")}</ul></div>`;
 
+// ---- league table, league games and brackets ---------------------------------------------------
+function bracketView(rounds, who) {
+  if (!rounds.length) return "";
+  return `<div class="bracket">${rounds.map(r => `<div class="round"><h3>Week ${r.week}</h3>${r.games.map(g => {
+    const row = (seed, key, pts) => `<div class="row ${g.winner ? (g.winner === key ? "won" : "lost") : ""}"><span class="s">${seed}</span><span class="n">${who(key)}</span><span class="p">${pts == null ? "" : f2(pts)}</span></div>`;
+    return `<div class="match"><div class="lab">${esc(g.label)}</div>${row(g.hi_seed, g.hi, g.hi_pts)}${row(g.lo_seed, g.lo, g.lo_pts)}</div>`;
+  }).join("")}</div>`).join("")}</div>`;
+}
+function leagueBlock() {
+  const L = D.league, rec = r => `${r.w}–${r.l}${r.t ? "–" + r.t : ""}`;
+  const who = k => `${esc(T[k].team)} <span class="vs">${esc(T[k].manager)}</span>`;
+  const table = `<div class="scroll"><table><thead><tr><th>#</th><th>Team</th><th>Conf</th><th>League record</th><th class="r">PF</th><th>Conference record</th></tr></thead>
+    <tbody>${L.table.map(t => `<tr class="${t.rank === 8 ? "cut" : t.rank === 16 ? "cut16" : ""}"><td class="rank">${t.rank}</td><td>${team(t.key)}</td><td><span class="chip">${esc(T[t.key].conf)}</span></td><td>${rec(t)}</td><td class="r">${f1(t.pf)}</td><td>${rec(t.conf_record)}</td></tr>`).join("")}</tbody></table></div>`;
+  const G = L.league_games;
+  const games = G.games.length ? `<div class="block"><h3>League games, week ${G.week}</h3><div class="list"><ul class="plain">${G.games.map((g, i) => `<li class="${i === 0 ? "gotw" : ""}"><div>${i === 0 ? '<span class="chip loot">Game of the week</span><br>' : ""}<b>#${g.a_rank} ${esc(T[g.a].team)}</b> v <b>#${g.b_rank} ${esc(T[g.b].team)}</b><br><span class="vs">${esc(T[g.a].manager)} v ${esc(T[g.b].manager)}</span></div><div class="vs num">${g.a_rank + g.b_rank}</div></li>`).join("")}</ul></div></div>` : "";
+  const brackets = L.title.length ? `<div class="block"><h3>League championship</h3>${bracketView(L.title, who)}</div><div class="block"><h3>Consolation bracket</h3>${bracketView(L.consolation, who)}</div>` : "";
+  const champ = L.champion ? `<div class="tile"><span class="k">${D.season} league champion</span><span class="v">${esc(T[L.champion].team)}</span><span class="s">${esc(T[L.champion].manager)}</span></div>` : "";
+  return `<div class="block"><h2>League table</h2>${champ}
+    <p class="note">All 20 teams together, by wins then points for${L.has_schedule ? ", counting the cross-conference league games from week 5" : ""}. After week 14 the top 8 (above the dashed line) play for the league title and 9–16 (above the dotted line) play the consolation bracket, in weeks 15–17.${L.provisional ? " Seeds are as things stand." : ""}</p>
+    ${table}</div>${games}${brackets}`;
+}
+function pastTournaments() {
+  const R = D.records, who = id => esc(R.names[id] || "Vacant team");
+  return `<div class="block"><h2>League tournaments</h2><p class="note">The top 8 in the combined table after week 14 play for the league title; 9–16 play the consolation bracket. Brackets are rebuilt from Sleeper scores, and the champion matches the commissioner's list every year. 2024 uses the commissioner's own published seeding.</p>
+    ${R.tournaments.map(t => `<details class="season"><summary>${t.season} · champion ${who(t.champion)}</summary><div>
+      <h3>League championship</h3>${bracketView(t.title, who)}<h3>Consolation</h3>${bracketView(t.consolation, who)}
+      <p class="vs">${t.official_seeds ? "Seeded from the commissioner's published table." : "Seeds rebuilt from Sleeper records: wins, then points for, through week 14."}</p></div></details>`).join("")}</div>`;
+}
+
 function renderConferences() {
-  document.getElementById("conferences").innerHTML = `
+  document.getElementById("conferences").innerHTML = leagueBlock() + `
     <div class="cols">${D.conferences.map(c => `<div class="block">
       <h2>${esc(c)} Conference</h2>
       ${standings(D.teams.filter(t => t.conf === c), D.playoff_teams)}
@@ -317,6 +362,7 @@ function renderRecords() {
     <div class="block"><h2>Head to head</h2>
       <div class="pick"><label for="h2h-pick">Manager</label><select id="h2h-pick">${R.current.map(id => `<option value="${esc(id)}">${N(id)}</option>`).join("")}</select></div>
       <div id="h2h-out"></div></div>
+    ${pastTournaments()}
     <div class="block"><h2>Single-game records</h2>
       <div class="cols">
         ${sideList("Highest scores", R.high)}
@@ -346,6 +392,9 @@ function renderCommish() {
   const owed = C.owed.length ? `<div class="owed">${C.owed.map(o => `<div class="card"><div class="head">Week ${o.week}: ${short(o.winner)} takes one player from ${short(o.loser)}</div>
       <ol>${o.targets.map(p => `<li>${esc(p.name)} <span>${esc(p.pos)} · ${esc(p.nfl)} · ${f1(p.ppg)} a game</span></li>`).join("")}</ol></div>`).join("")}</div>`
     : `<p class="note">All steals from week ${C.last_done} have been made.</p>`;
+  const W = D.robber.waiver_rule;
+  const waiverRule = `<div class="scroll"><table><thead><tr><th>#</th><th>Before week ${W.week} results</th><th>Set to</th><th>Sleeper now</th></tr></thead><tbody>${W.after.map((n, i) => `<tr><td class="rank">${i + 1}</td><td>${esc(W.before[i])}</td><td><b>${esc(n)}</b></td><td class="${W.now[i] === n ? "" : "gone"}">${esc(W.now[i] || "")}</td></tr>`).join("")}</tbody></table></div>
+    <p class="note">${W.matches ? '<span class="chip good">Sleeper matches</span>' : '<span class="chip warn">Sleeper differs</span> If waivers have not run since, set Sleeper to the middle column. Once waiver claims run they move teams again, so a difference after that is expected.'} ${W.source === "commissioner" ? "Week " + W.week + " order is from the commissioner's table." : "Worked out automatically when week " + W.week + "'s games ended."}</p>`;
   const waiver = C.waiver.length ? `<div class="scroll"><table><thead><tr><th>Loser</th><th class="r">Waiver</th><th>Winner</th><th class="r">Waiver</th><th></th></tr></thead><tbody>${C.waiver.map(w => `<tr><td>${esc(w.loser)}</td><td class="r">${w.loser_pos ?? ""}</td><td>${esc(w.winner)}</td><td class="r">${w.winner_pos ?? ""}</td><td>${w.ok ? '<span class="chip good">Loser ahead</span>' : '<span class="chip bad">Swap needed</span>'}</td></tr>`).join("")}</tbody></table></div>` : "";
   const lineups = C.lineups.length ? `<div class="scroll"><table><thead><tr><th>League</th><th>Manager</th><th>Problem</th></tr></thead><tbody>${C.lineups.map(x => `<tr><td>${esc(x.league)}</td><td><b>${esc(x.manager)}</b></td><td>${x.issues.map(i => `<div class="issue"><span class="chip ${i.level === "problem" ? "bad" : "warn"}">${i.level === "problem" ? "Fix" : "Watch"}</span>${esc(i.text)}</div>`).join("")}</td></tr>`).join("")}</tbody></table></div>` : `<p class="note">Every starting lineup is full and playing.</p>`;
   const bench = C.bench.length ? `<div class="list"><ul class="plain">${C.bench.map(b => `<li><div><b>${esc(b.name)}</b> <span class="vs">${esc(b.pos)} · ${esc(b.nfl)}</span></div><div class="vs">${short(b.team)}</div></li>`).join("")}</ul></div>` : `<p class="note">Every benched Robber League player is injured or on a bye.</p>`;
@@ -353,7 +402,7 @@ function renderCommish() {
   el.innerHTML = `
     <p class="note">For the commissioner. Updated with the rest of the site.</p>
     <div class="block"><h2>Robber League steals to make</h2>${owed}</div>
-    <div class="block"><h2>Robber League waiver order</h2><p class="note">House rule: each loser moves ahead of the team that beat them. Week ${C.last_done} results against the current order. Waiver claims also move teams, so check before changing anything.</p>${waiver}</div>
+    <div class="block"><h2>Robber League waiver order</h2><p class="note">House rule: the week's losers move ahead of its winners, each group keeping its order.</p>${waiverRule}</div>
     <div class="block"><h2>Week ${C.week} lineup problems</h2><p class="note">Starters on a bye, ruled out or doubtful, and empty starting slots, across all three leagues.</p>${lineups}</div>
     <div class="block"><h2>Robber League bench check</h2>${bench}</div>
     <div class="block"><h2>Recent moves</h2>${moves}</div>`;
