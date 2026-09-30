@@ -67,6 +67,17 @@ ul.plain li:last-child { border-bottom: 0; }
 ul.plain li > div { min-width: 0; overflow-wrap: anywhere; }
 dl.key { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; color: var(--fg2); font-size: 13px; max-width: 78ch; }
 dl.key dt { font-weight: 600; color: var(--fg); } dl.key dd { margin: 0; }
+.plan { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+.plan .sum { max-width: 75ch; }
+.plan ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: step; }
+.plan li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: start; }
+.plan li input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); }
+.plan li label { font-weight: 600; cursor: pointer; }
+.plan li .why { grid-column: 2; color: var(--fg2); font-size: 13px; max-width: 75ch; }
+.plan li.done label, .plan li.done .why { color: var(--fg3); text-decoration: line-through; }
+.plan .n { counter-increment: step; }
+.plan .n label::before { content: counter(step) ". "; color: var(--fg3); }
+tr.me td { background: var(--accent-soft); }
 footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 </style>
 
@@ -106,6 +117,21 @@ function statRow(p, lead, tail = "") {
 }
 const head = (first, last) => `<thead><tr><th>${first}</th><th>Player</th><th>Wk ${D.week}</th><th class="r">Proj</th><th class="r">xPts</th><th class="r">Avg</th><th>Trend</th><th class="r">Start</th><th class="r">Value</th><th>Snap share by week</th><th class="r">Carries + targets</th>${last}</tr></thead>`;
 
+const planKey = (t, s, k) => `plan:${D.season}:${D.week}:${t.kind}:${s}:${k}`;
+function planBlock(t) {
+  const P = t.plan; if (!P) return "";
+  return `<div class="block"><h2>Game plan</h2><div class="plan"><h3>${esc(P.title)}</h3><p class="sum">${esc(P.summary)}</p>
+    ${P.sections.map((s, si) => `<div class="block"><h3>${esc(s.heading)}</h3>${s.note ? `<p class="note">${esc(s.note)}</p>` : ""}
+      <ol>${s.steps.map((st, k) => { const id = `step-${t.kind}-${si}-${k}`; return `<li class="${/claims/i.test(s.heading) ? "n" : ""}"><input type="checkbox" id="${id}" data-key="${planKey(t, si, k)}"><label for="${id}">${esc(st.text)}</label>${st.why ? `<span class="why">${esc(st.why)}</span>` : ""}</li>`; }).join("")}</ol></div>`).join("")}
+  </div><p class="note">Tick steps off as you go; the ticks are kept in this browser only.</p></div>`;
+}
+function competition(t) {
+  if (!t.competition) return "";
+  return `<div class="block"><h2>Waiver order</h2><p class="note">Open means an empty starting spot. Short means fewer players at that position than the lineup needs.</p>
+    <div class="scroll"><table><thead><tr><th>#</th><th>Manager</th><th class="r">Open</th><th>Short at</th><th class="r">RBs</th><th class="r">WRs</th></tr></thead>
+    <tbody>${t.competition.map(c => `<tr class="${c.me ? "me" : ""}"><td>${c.waiver}</td><td><b>${esc(c.manager)}</b>${c.me ? ' <span class="vs">you</span>' : ""}</td><td class="r">${c.open || ""}</td><td>${c.short.join(", ")}</td><td class="r">${c.rbs}</td><td class="r">${c.wrs}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+
 function panel(t, i) {
   const edge = t.my_total - t.opp_total;
   const swaps = t.swaps.length ? `<ul class="plain">${t.swaps.map(s => `<li><div>Start ${who(s.start)}${s.sit ? ` over ${who(s.sit)}` : ""}</div><div><b>${s.sit ? signed(s.start.start - s.sit.start) : n1(s.start.start)}</b></div></li>`).join("")}</ul>` : `<p class="note">The lineup already set is the best one on these numbers.</p>`;
@@ -125,6 +151,8 @@ function panel(t, i) {
       <div class="tile"><span class="k">Lineup as set</span><span class="v">${n1(t.current_total)}</span><span class="s">${t.swaps.length ? `${t.swaps.length} change${t.swaps.length > 1 ? "s" : ""} would add ${(t.my_total - t.current_total).toFixed(1)}.` : "Nothing to change."}</span></div>
       <div class="tile"><span class="k">Record</span><span class="v">${esc(t.record)}</span><span class="s">Waiver position ${esc(t.waiver)}</span></div>
     </div>
+    ${planBlock(t)}
+    ${competition(t)}
     <div class="block"><h2>Lineup calls</h2>${swaps}</div>
     <div class="block"><h2>Your roster</h2>
       <div class="scroll"><table>${head("Slot", "<th>Byes ahead</th>")}<tbody>${t.roster.map(p => statRow(p, esc(p.where), `<td>${byes(p)}</td>`)).join("")}</tbody></table></div></div>
@@ -146,9 +174,17 @@ document.getElementById("meta").innerHTML = `Data from Sleeper<br>${esc(D.built)
 document.getElementById("foot").textContent = "Projections are Sleeper's. xPts, Start and Value are calculated here from Sleeper's stats. Treat them as a second opinion.";
 document.getElementById("tabs").innerHTML = D.teams.map((t, i) => `<button role="tab" data-i="${i}" aria-selected="${i === 0}">${esc(t.kind)}</button>`).join("");
 document.getElementById("panels").innerHTML = D.teams.map(panel).join("");
+document.querySelectorAll(".plan input[type=checkbox]").forEach(box => {
+  let saved = null; try { saved = localStorage.getItem(box.dataset.key); } catch (_) {}
+  const mark = () => box.closest("li").classList.toggle("done", box.checked);
+  box.checked = saved === "1"; mark();
+  box.addEventListener("change", () => { mark(); try { localStorage.setItem(box.dataset.key, box.checked ? "1" : "0"); } catch (_) {} });
+});
 document.getElementById("tabs").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   document.querySelectorAll("section.panel").forEach((p, i) => p.hidden = String(i) !== b.dataset.i);
   document.querySelectorAll("#tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
 });
+const robberTab = D.teams.findIndex(t => t.plan);
+if (robberTab > 0) document.querySelector(`#tabs button[data-i="${robberTab}"]`).click();
 </script>

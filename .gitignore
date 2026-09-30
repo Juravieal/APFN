@@ -9,6 +9,7 @@ site/data.json
 # Private: personal lineup and waiver advice. Never published.
 site/advisor.html
 site/advisor.json
+private/
 
 __pycache__/
 _site/

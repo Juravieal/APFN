@@ -178,6 +178,19 @@ def advise(lid):
         "ideal": ideal, "swaps": swaps, "adds": adds, "buy": buy, "sell": sell,
     }
     if lid in NO_BENCH:
+        # Who claims ahead of me, and what each of them is missing.
+        base = {p: slots.count(p) for p in ("QB", "RB", "WR", "TE", "K", "DEF")}
+        starters = sum(1 for s in slots if s != "BN")
+        out["competition"] = []
+        for r in sorted(rosters, key=lambda r: r["settings"].get("waiver_position") or 99):
+            act = [pid for pid in (r["players"] or []) if pid not in set(r.get("reserve") or [])]
+            count = {pos: sum(1 for pid in act if PLAYERS.get(pid, {}).get("position") == pos) for pos in base}
+            out["competition"].append({
+                "waiver": r["settings"].get("waiver_position"), "manager": users.get(r["owner_id"], "?"),
+                "me": r["owner_id"] == ME, "open": max(starters - len(act), 0),
+                "short": [pos for pos, n in base.items() if count[pos] < n],
+                "rbs": count["RB"], "wrs": count["WR"],
+            })
         need = {s: slots.count(s) for s in set(slots) if s != "BN"}
         have = {pos: sum(1 for p in active if p["pos"] == pos) for pos in ("QB", "RB", "WR", "TE", "K", "DEF")}
         out["shape"] = {"need": need, "have": have}
@@ -190,6 +203,11 @@ def main():
     data = {"season": SEASON, "week": WEEK, "ahead": AHEAD,
             "built": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
             "teams": [advise(lid) for lid in LEAGUES]}
+    # A written plan for the week, if there is one. Kept in private/, which is never committed.
+    plan_file = ROOT / "private" / "plans" / f"{SEASON}-week-{WEEK:02d}.json"
+    plans = json.loads(plan_file.read_text(encoding="utf-8")) if plan_file.exists() else {}
+    for t in data["teams"]:
+        t["plan"] = plans.get(t["kind"])
     html = (SITE / "advisor-template.html").read_text(encoding="utf-8")
     blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     (SITE / "advisor.html").write_text(html.replace("/*__DATA__*/null", blob), encoding="utf-8")
