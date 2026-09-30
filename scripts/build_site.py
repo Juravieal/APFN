@@ -274,6 +274,66 @@ def robber_section(lg):
     return {"steals": steals, "owed": owed, "bench": bench, "summary": summary}
 
 
+def commissioner(leagues, robber):
+    """What the commissioner acts on each week. Everything here is public Sleeper data;
+    the PIN on the tab only keeps it out of everyone else's way."""
+    playing = {x for g in load(f"nfl/schedule_{STATE['season']}.json") if g["week"] == WEEK_NOW
+               for x in (g["home"], g["away"])}
+    out_statuses = {"Out", "IR", "PUP", "Sus", "NA", "DNR"}
+    lineups, moves = [], []
+    for name, lg in leagues:
+        slots = [s for s in lg["league"]["roster_positions"] if s != "BN"]
+        who = {rid: t["manager"] for rid, t in lg["teams"].items()}
+        for r in lg["rosters"]:
+            issues = []
+            for slot, pid in zip(slots, (r["starters"] or []) + [None] * len(slots)):
+                if not pid or pid == "0":
+                    issues.append({"level": "problem", "text": f"Empty {slot} slot"})
+                    continue
+                p = PLAYERS.get(pid, {})
+                status = p.get("injury_status") or ""
+                if p.get("team") and p["team"] not in playing:
+                    issues.append({"level": "problem", "text": f"{pname(pid)} ({p['team']}) is on bye"})
+                elif status in out_statuses:
+                    issues.append({"level": "problem", "text": f"{pname(pid)} is listed {status}"})
+                elif status == "Doubtful":
+                    issues.append({"level": "watch", "text": f"{pname(pid)} is doubtful"})
+            if issues:
+                lineups.append({"league": name, "manager": who[r["roster_id"]], "issues": issues})
+
+        for w in (WEEK_NOW, WEEK_NOW - 1):
+            path = RAW / lg["dir"] / f"transactions_{w:02d}.json"
+            for t in json.loads(path.read_text(encoding="utf-8")) if path.exists() else []:
+                if t["status"] != "complete":
+                    continue
+                parts = [f"{who.get(rid, '?')} adds {pname(pid)}" for pid, rid in (t.get("adds") or {}).items()]
+                parts += [f"{who.get(rid, '?')} drops {pname(pid)}" for pid, rid in (t.get("drops") or {}).items()]
+                if t["type"] == "commissioner" and set(t.get("adds") or {}) & set(t.get("drops") or {}):
+                    pid = next(iter(set(t["adds"]) & set(t["drops"])))
+                    parts = [f"{pname(pid)} moved from {who.get(t['drops'][pid], '?')} to {who.get(t['adds'][pid], '?')}"]
+                moves.append({"league": name, "type": t["type"].replace("_", " "), "at": t["created"],
+                              "text": "; ".join(parts) or "Draft pick or budget change"})
+
+    waiver = []
+    if DONE:
+        teams = {t["key"]: t for t in robber["teams"]}
+        for t in robber["teams"]:
+            g = next((x for x in t["weeks"] if x["week"] == DONE[-1] and x["res"] == "W"), None)
+            if g:
+                loser = teams[g["opp"]]
+                waiver.append({"winner": t["manager"], "loser": loser["manager"], "winner_pos": t["waiver"],
+                               "loser_pos": loser["waiver"], "ok": (loser["waiver"] or 99) < (t["waiver"] or 99)})
+    pin = json.loads((ROOT / "content" / "commissioner.json").read_text(encoding="utf-8"))
+    return {
+        "week": WEEK_NOW, "last_done": DONE[-1] if DONE else None,
+        "lineups": sorted(lineups, key=lambda x: (x["league"], x["manager"].lower())),
+        "owed": robber["owed"], "bench": [b for b in robber["bench"] if b["flag"]],
+        "waiver": sorted(waiver, key=lambda x: x["loser_pos"] or 99),
+        "moves": sorted(moves, key=lambda m: -m["at"])[:40],
+        "lock": {"salt": pin["salt"], "sha256": pin["pin_sha256"]},
+    }
+
+
 def compute():
     confs = {lid: load_league(lid) for lid in CONFERENCES}
     pool = []
@@ -313,6 +373,8 @@ def compute():
         "robber": {"teams": rob_teams, "upcoming": upcoming(rob),
                    "playoff_teams": rob["league"]["settings"]["playoff_teams"], **robber_section(rob)},
     }
+    data["commish"] = commissioner([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)],
+                                   data["robber"])
     return data
 
 

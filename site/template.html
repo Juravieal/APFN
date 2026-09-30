@@ -113,6 +113,19 @@ article.story .scores { display: flex; flex-direction: column; gap: 8px; min-wid
 .pick select { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--fg); max-width: 100%; }
 .pick select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .gone { color: var(--fg3); }
+dialog.pin { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); padding: 20px; width: min(340px, calc(100vw - 32px)); }
+dialog.pin::backdrop { background: rgba(10, 15, 20, .55); }
+dialog.pin form { display: flex; flex-direction: column; gap: 12px; }
+dialog.pin input { font: 700 28px var(--display); letter-spacing: .3em; text-align: center; padding: 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; }
+dialog.pin .row { display: flex; gap: 8px; justify-content: flex-end; }
+dialog.pin button { font: 600 16px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--fg2); cursor: pointer; }
+dialog.pin button[type=submit] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+dialog.pin .err { color: var(--loss); min-height: 1.2em; margin: 0; }
+nav.tabs button.locked::after { content: ""; display: inline-block; width: 9px; height: 10px; margin-left: 7px; vertical-align: 0; border: 2px solid currentColor; border-radius: 2px; border-top-width: 5px; opacity: .7; }
+.issue { display: flex; gap: 8px; align-items: baseline; }
+.chip.warn { background: var(--loot-soft); border-color: transparent; color: var(--fg); }
+.chip.bad { background: var(--loss-soft); border-color: transparent; color: var(--fg); }
+.chip.good { background: var(--win-soft); border-color: transparent; color: var(--fg); }
 footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
 a.jump:hover { background: var(--accent-soft); }
@@ -134,6 +147,7 @@ a.jump:hover { background: var(--accent-soft); }
     <button role="tab" id="tab-conferences" data-tab="conferences">Conferences</button>
     <button role="tab" id="tab-robber" data-tab="robber">Robber League</button>
     <button role="tab" id="tab-records" data-tab="records">Record book</button>
+    <button role="tab" id="tab-commish" data-tab="commish" class="locked">Commissioner</button>
     <a class="jump" href="live.html">Live scoreboard</a>
   </nav>
 
@@ -142,6 +156,16 @@ a.jump:hover { background: var(--accent-soft); }
   <section class="panel" id="conferences" role="tabpanel" aria-labelledby="tab-conferences" hidden></section>
   <section class="panel" id="robber" role="tabpanel" aria-labelledby="tab-robber" hidden></section>
   <section class="panel" id="records" role="tabpanel" aria-labelledby="tab-records" hidden></section>
+  <section class="panel" id="commish" role="tabpanel" aria-labelledby="tab-commish" hidden></section>
+  <dialog class="pin" id="pin-dialog" aria-labelledby="pin-title">
+    <form id="pin-form">
+      <h2 id="pin-title">Commissioner</h2>
+      <label for="pin-input" class="note">Enter the PIN</label>
+      <input id="pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="12">
+      <p class="err" id="pin-error" role="alert"></p>
+      <div class="row"><button type="button" id="pin-cancel">Cancel</button><button type="submit">Open</button></div>
+    </form>
+  </dialog>
 
   <footer id="foot"></footer>
 </div>
@@ -316,8 +340,56 @@ function renderRecords() {
   pick.addEventListener("change", draw); draw();
 }
 
+function renderCommish() {
+  const C = D.commish, el = document.getElementById("commish");
+  const when = ms => new Date(ms).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
+  const owed = C.owed.length ? `<div class="owed">${C.owed.map(o => `<div class="card"><div class="head">Week ${o.week}: ${short(o.winner)} takes one player from ${short(o.loser)}</div>
+      <ol>${o.targets.map(p => `<li>${esc(p.name)} <span>${esc(p.pos)} · ${esc(p.nfl)} · ${f1(p.ppg)} a game</span></li>`).join("")}</ol></div>`).join("")}</div>`
+    : `<p class="note">All steals from week ${C.last_done} have been made.</p>`;
+  const waiver = C.waiver.length ? `<div class="scroll"><table><thead><tr><th>Loser</th><th class="r">Waiver</th><th>Winner</th><th class="r">Waiver</th><th></th></tr></thead><tbody>${C.waiver.map(w => `<tr><td>${esc(w.loser)}</td><td class="r">${w.loser_pos ?? ""}</td><td>${esc(w.winner)}</td><td class="r">${w.winner_pos ?? ""}</td><td>${w.ok ? '<span class="chip good">Loser ahead</span>' : '<span class="chip bad">Swap needed</span>'}</td></tr>`).join("")}</tbody></table></div>` : "";
+  const lineups = C.lineups.length ? `<div class="scroll"><table><thead><tr><th>League</th><th>Manager</th><th>Problem</th></tr></thead><tbody>${C.lineups.map(x => `<tr><td>${esc(x.league)}</td><td><b>${esc(x.manager)}</b></td><td>${x.issues.map(i => `<div class="issue"><span class="chip ${i.level === "problem" ? "bad" : "warn"}">${i.level === "problem" ? "Fix" : "Watch"}</span>${esc(i.text)}</div>`).join("")}</td></tr>`).join("")}</tbody></table></div>` : `<p class="note">Every starting lineup is full and playing.</p>`;
+  const bench = C.bench.length ? `<div class="list"><ul class="plain">${C.bench.map(b => `<li><div><b>${esc(b.name)}</b> <span class="vs">${esc(b.pos)} · ${esc(b.nfl)}</span></div><div class="vs">${short(b.team)}</div></li>`).join("")}</ul></div>` : `<p class="note">Every benched Robber League player is injured or on a bye.</p>`;
+  const moves = C.moves.length ? `<div class="scroll"><table><thead><tr><th>When</th><th>League</th><th>Type</th><th>Move</th></tr></thead><tbody>${C.moves.map(m => `<tr><td>${when(m.at)}</td><td>${esc(m.league)}</td><td>${esc(m.type)}</td><td style="white-space:normal">${esc(m.text)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="note">No moves in the last two weeks.</p>`;
+  el.innerHTML = `
+    <p class="note">For the commissioner. Updated with the rest of the site.</p>
+    <div class="block"><h2>Robber League steals to make</h2>${owed}</div>
+    <div class="block"><h2>Robber League waiver order</h2><p class="note">House rule: each loser moves ahead of the team that beat them. Week ${C.last_done} results against the current order. Waiver claims also move teams, so check before changing anything.</p>${waiver}</div>
+    <div class="block"><h2>Week ${C.week} lineup problems</h2><p class="note">Starters on a bye, ruled out or doubtful, and empty starting slots, across all three leagues.</p>${lineups}</div>
+    <div class="block"><h2>Robber League bench check</h2>${bench}</div>
+    <div class="block"><h2>Recent moves</h2>${moves}</div>`;
+}
+
+const LOCK_KEY = "apfn-commish";
+let commishOpen = false;
+try { commishOpen = sessionStorage.getItem(LOCK_KEY) === D.commish.lock.sha256; } catch (_) {}
+async function pinMatches(pin) {
+  const bytes = new TextEncoder().encode(`${D.commish.lock.salt}:${pin}`);
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("") === D.commish.lock.sha256;
+}
+function askPin() {
+  const dlg = document.getElementById("pin-dialog"), input = document.getElementById("pin-input"), err = document.getElementById("pin-error");
+  input.value = ""; err.textContent = "";
+  dlg.showModal(); input.focus();
+}
+document.getElementById("pin-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const input = document.getElementById("pin-input"), err = document.getElementById("pin-error");
+  if (await pinMatches(input.value.trim())) {
+    commishOpen = true;
+    try { sessionStorage.setItem(LOCK_KEY, D.commish.lock.sha256); } catch (_) {}
+    document.getElementById("pin-dialog").close();
+    document.getElementById("tab-commish").classList.remove("locked");
+    renderCommish(); show("commish");
+  } else {
+    err.textContent = "That PIN isn't right."; input.select();
+  }
+});
+document.getElementById("pin-cancel").addEventListener("click", () => document.getElementById("pin-dialog").close());
+
 function show(tab) {
-  if (!["recap", "power", "conferences", "robber", "records"].includes(tab)) tab = "recap";
+  if (!["recap", "power", "conferences", "robber", "records", "commish"].includes(tab)) tab = "recap";
+  if (tab === "commish" && !commishOpen) { askPin(); return; }
   document.querySelectorAll("section.panel").forEach(p => p.hidden = p.id !== tab);
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
 }
@@ -331,6 +403,7 @@ document.getElementById("eyebrow").textContent = `${D.season} season · through 
 document.getElementById("meta").innerHTML = `Armadillo + Grizzly + Robber<br>Data from Sleeper, ${esc(D.built)}`;
 document.getElementById("foot").textContent = "Scores and rosters come from Sleeper's public API. Rankings, luck and robbery figures are calculated here and are not official league standings.";
 renderRecap(); renderPower(); renderConferences(); renderRobber(); renderRecords();
+if (commishOpen) { renderCommish(); document.getElementById("tab-commish").classList.remove("locked"); }
 show(location.hash.slice(1));
 </script>
 </body>

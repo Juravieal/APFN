@@ -7,6 +7,10 @@ not show.
 - **Hub** (`index.html`): weekly recap, power rankings across all 20 conference teams,
   conference standings, the Robber League robbery ledger, and an all-time record book back
   to 2021.
+- **Commissioner tab**: steals to make, the Robber League waiver-order check, lineup problems
+  across all three leagues, the bench check and recent moves. It asks for a PIN; only a salted
+  hash is stored (`content/commissioner.json`). This keeps it out of the way, not secret: the
+  data is public on Sleeper anyway.
 - **Live scoreboard** (`live.html`): game-day scores for all three leagues, refreshed from
   Sleeper every 60 seconds in the browser.
 
