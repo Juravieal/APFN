@@ -1,5 +1,5 @@
 {
-  "_about": "The Commissioner tab asks for a PIN. Only a salted SHA-256 hash of it is stored here, never the PIN itself. To change it, recompute: sha256(salt + ':' + new_pin) as hex. This keeps casual visitors out of the tab; it is not real security, because the tab only shows data that is already public on Sleeper.",
+  "_about": "The League Admin tab asks for a PIN. Only a salted SHA-256 hash of it is stored here, never the PIN itself. To change it, recompute: sha256(salt + ':' + new_pin) as hex. This keeps casual visitors out of the tab; it is not real security, because the tab only shows data that is already public on Sleeper.",
   "salt": "apfn-commissioner",
   "pin_sha256": "caf65054380cb275a35425ecea0493f6baeb646720b2d090701c07afc8f0e902"
 }

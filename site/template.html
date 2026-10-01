@@ -244,7 +244,7 @@ button.pdf:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .recap-week + .recap-week { padding-top: 12px; border-top: 3px solid var(--accent); }
 h2.week-head { font-size: 22px; color: var(--accent); }
 .print-head { display: none; }
-/* Printing (and "Save as PDF" from the Commissioner tab): just the recap, in light colors, one week per page run */
+/* Printing (and "Save as PDF" from the League Admin tab): just the recap, in light colors, one week per page run */
 @media print {
   :root:root:root {
     --bg: #ffffff; --surface: #ffffff; --sunken: #f1f2f4; --line: #cdd2d8;
@@ -293,7 +293,7 @@ a.jump:hover { background: var(--accent-soft); }
     <button role="tab" id="tab-conferences" data-tab="conferences">Conferences</button>
     <button role="tab" id="tab-robber" data-tab="robber">Robber League</button>
     <button role="tab" id="tab-records" data-tab="records">Record book</button>
-    <button role="tab" id="tab-commish" data-tab="commish" class="locked">Commissioner</button>
+    <button role="tab" id="tab-commish" data-tab="commish" class="locked">League Admin</button>
     <a class="jump" href="live.html">Live scoreboard</a>
   </nav>
 
@@ -306,7 +306,7 @@ a.jump:hover { background: var(--accent-soft); }
   <section class="panel" id="commish" role="tabpanel" aria-labelledby="tab-commish" hidden></section>
   <dialog class="pin" id="pin-dialog" aria-labelledby="pin-title">
     <form id="pin-form">
-      <h2 id="pin-title">Commissioner</h2>
+      <h2 id="pin-title">League Admin</h2>
       <label for="pin-input" class="note">Enter the PIN</label>
       <input id="pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="12">
       <p class="err" id="pin-error" role="alert"></p>
@@ -421,7 +421,7 @@ function renderPreview() {
 }
 
 // Every finished week stays readable: anyone can pick a week, or the whole season.
-// Saving one as a PDF is in the Commissioner tab (printRecap).
+// Saving one as a PDF is in the League Admin tab (printRecap).
 let recapPick = null;
 function renderRecap() {
   const all = D.recaps || [], el = document.getElementById("recap");
