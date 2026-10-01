@@ -4,30 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>APFN League Hub</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Saira+Condensed:wght@700;800;900&family=Saira:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Exo+2:ital,wght@1,800;1,900&family=IBM+Plex+Sans:wght@400;500;600&family=Saira:wght@600;700&display=swap">
 <style>
 /* Layout: scoreboard header, three tabs, dense ranked tables; summary tiles sit above the detail. */
 :root {
-  --bg: #f2f4f6; --surface: #ffffff; --sunken: #e7ebef; --line: #d3dae1;
-  --fg: #15202b; --fg2: #4a5866; --fg3: #6f7d8b;
-  --accent: #1f5a8a; --accent-soft: #d9e6f2;
-  --loot: #8f5a08; --loot-soft: #f6e8cc;
+  --bg: #eceef1; --surface: #ffffff; --sunken: #e2e5e9; --line: #cdd2d8;
+  --fg: #16181c; --fg2: #4a4f57; --fg3: #6f757e;
+  --accent: #8a6a12; --accent-soft: #f1e6c4;
+  --loot: #8a6a12; --loot-soft: #f1e6c4;
   --win: #1e6b43; --win-soft: #dcefe4; --loss: #a23a2a; --loss-soft: #f6dfda;
   --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --brand: "Exo 2", "Arial Black", sans-serif;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0f151b; --surface: #182029; --sunken: #121920; --line: #2a3541;
-  --fg: #e7edf2; --fg2: #aab6c2; --fg3: #8492a0;
-  --accent: #7db4e6; --accent-soft: #1d3347;
-  --loot: #e5b155; --loot-soft: #3a2e17;
+  --bg: #111214; --surface: #1b1c20; --sunken: #15161a; --line: #2e3036;
+  --fg: #eceef0; --fg2: #b4b8bf; --fg3: #8b9098;
+  --accent: #d9b84e; --accent-soft: #3a3220;
+  --loot: #e2c15a; --loot-soft: #3a3220;
   --win: #6fcb97; --win-soft: #173326; --loss: #f0907f; --loss-soft: #3d201c;
   color-scheme: dark } }
 :root[data-theme="dark"] {
-  --bg: #0f151b; --surface: #182029; --sunken: #121920; --line: #2a3541;
-  --fg: #e7edf2; --fg2: #aab6c2; --fg3: #8492a0;
-  --accent: #7db4e6; --accent-soft: #1d3347;
-  --loot: #e5b155; --loot-soft: #3a2e17;
+  --bg: #111214; --surface: #1b1c20; --sunken: #15161a; --line: #2e3036;
+  --fg: #eceef0; --fg2: #b4b8bf; --fg3: #8b9098;
+  --accent: #d9b84e; --accent-soft: #3a3220;
+  --loot: #e2c15a; --loot-soft: #3a3220;
   --win: #6fcb97; --win-soft: #173326; --loss: #f0907f; --loss-soft: #3d201c;
   color-scheme: dark }
 
@@ -38,6 +39,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--bo
 h1, h2, h3 { font-family: var(--display); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance; line-height: 1.05; }
 h1 { font-size: 40px; }
 h2 { font-size: 24px; }
+h1, h2 { font-family: var(--brand); font-weight: 900; font-style: italic; letter-spacing: .01em; }
 h3 { font-size: 17px; font-weight: 600; letter-spacing: .05em; color: var(--fg2); }
 p { margin: 0; }
 .muted { color: var(--fg2); }
@@ -50,7 +52,7 @@ header.top .meta { color: var(--fg2); font-size: 13px; text-align: right; }
 
 nav.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 nav.tabs button { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--fg2); border-radius: 4px; cursor: pointer; }
-nav.tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+nav.tabs button[aria-selected="true"] { background: linear-gradient(180deg, #f3dc86, #d4ad3a 55%, #b48c22); color: #111; border-color: #8a6a12; }
 nav.tabs button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 section.panel { display: flex; flex-direction: column; gap: 24px; }
@@ -142,77 +144,72 @@ details.season > summary { cursor: pointer; padding: 10px 14px; font-weight: 600
 details.season > div { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px; }
 tr.cut16 td { border-bottom: 2px dotted var(--fg3); }
 .gotw { background: var(--loot-soft); }
-/* ---- APFN Pro League banner, built around the league artwork in site/img ---- */
-.hero { --navy: #0d1f3c; --gold: #f2b705; --green: #1f8a43; --blue: #1a5bb8;
-  position: relative; overflow: hidden; isolation: isolate; color: #fff; padding: 22px 16px 20px;
-  background: radial-gradient(90% 75% at 50% 15%, #1f3f75 0%, #142d57 40%, #0d1f3f 72%, #0a1830 100%); }
+/* ---- APFN Pro League banner: the league's steel-and-gold shields ---- */
+.hero { --gold: #e2c15a; position: relative; overflow: hidden; isolation: isolate; color: #fff; padding: 22px 16px 20px;
+  background: radial-gradient(70% 65% at 50% 32%, #3b3424 0%, #22201b 42%, #121214 74%, #0b0b0d 100%); }
 .hero .beams { position: absolute; inset: 0; z-index: -2; pointer-events: none;
   background:
-    linear-gradient(98deg, transparent 13%, rgba(190, 215, 255, .07) 16%, transparent 22%),
-    linear-gradient(82deg, transparent 78%, rgba(190, 215, 255, .07) 84%, transparent 87%),
-    linear-gradient(90deg, transparent 46%, rgba(190, 215, 255, .06) 50%, transparent 54%); }
-.hero .field { position: absolute; left: 0; right: 0; bottom: 0; height: 36%; z-index: -1; overflow: hidden;
-  background: linear-gradient(rgba(10, 24, 48, 0), #0f3426 55%, #0c2c1f); }
-.hero .field::before { content: ""; position: absolute; left: -40%; right: -40%; bottom: 0; height: 240%;
-  transform: perspective(300px) rotateX(62deg); transform-origin: bottom;
-  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgba(255, 255, 255, .09) calc(10% - 2px) 10%); }
-.hero-top { max-width: 1260px; margin: 0 auto; display: grid; align-items: center; gap: 0 clamp(8px, 3vw, 48px);
+    linear-gradient(98deg, transparent 12%, rgba(255, 226, 150, .06) 16%, transparent 22%),
+    linear-gradient(82deg, transparent 78%, rgba(255, 226, 150, .06) 84%, transparent 88%); }
+.hero .field { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; z-index: -1;
+  background: linear-gradient(rgba(11, 11, 13, 0), rgba(52, 46, 32, .55) 70%, rgba(40, 36, 26, .8)); border-bottom: 3px solid #8a6a12; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.hero-top { max-width: 1260px; margin: 0 auto; display: grid; align-items: center; gap: 0 clamp(6px, 3vw, 48px);
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
-.hero .center { display: flex; flex-direction: column; align-items: center; }
-.hero .ribbon-row { grid-column: 1 / -1; justify-self: center; margin-top: -14px; }
-.hero .crest { width: clamp(190px, 27vw, 380px); height: auto; filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .55)); }
-.hero .ribbon-img { display: block; width: clamp(220px, 33vw, 470px); height: auto; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .45)); }
-.ribbon-gold { display: inline-block; padding: 6px 34px 4px; border: 3px solid #0d1f3c; border-radius: 5px;
-  background: linear-gradient(180deg, #fde68a 0%, #f2b705 48%, #d49a04 52%, #f7cf4a 100%);
-  font: 900 clamp(22px, 3vw, 38px)/1.05 "Saira Condensed", "Arial Narrow", sans-serif; letter-spacing: .04em; text-transform: uppercase;
-  color: #0d1f3c; -webkit-text-stroke: 5px #fff; paint-order: stroke fill; box-shadow: 0 6px 12px rgba(0, 0, 0, .4); }
-.hero .mascot { width: min(100%, 320px); height: auto;
-  filter: drop-shadow(4px 0 0 #fff) drop-shadow(-4px 0 0 #fff) drop-shadow(0 4px 0 #fff) drop-shadow(0 -4px 0 #fff) drop-shadow(0 12px 18px rgba(0, 0, 0, .5)); }
-.hero .mascot.left { justify-self: end; } .hero .mascot.right { justify-self: start; }
-/* Game of the week: a smaller strip under the league identity */
+.hero .league { width: clamp(200px, 29vw, 400px); height: auto; filter: drop-shadow(0 16px 30px rgba(0, 0, 0, .65)); }
+.hero .conf { width: min(100%, 250px); height: auto; filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .6)); }
+.hero .conf.left { justify-self: end; } .hero .conf.right { justify-self: start; }
+.hero .ribbon-row { grid-column: 1 / -1; justify-self: center; margin-top: -8px; }
+.ribbon-gold { display: inline-block; padding: 4px 30px 3px; border: 3px solid #111; border-radius: 4px;
+  background: linear-gradient(180deg, #fbeaa6 0%, #e2c15a 45%, #b48c22 55%, #e8cf72 100%);
+  font: 900 italic clamp(22px, 3vw, 36px)/1.05 var(--brand); text-transform: uppercase; color: #111;
+  text-shadow: 0 0 6px rgba(255, 255, 255, .6); box-shadow: 0 6px 12px rgba(0, 0, 0, .5); }
+/* Game of the week: smaller strip under the shields */
 .gotw-strip { max-width: 900px; margin: 18px auto 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.hero .label { white-space: nowrap; font: 700 clamp(11px, 1.1vw, 14px) Saira, sans-serif; letter-spacing: .24em; text-transform: uppercase; color: #c3d2ea; text-align: center; }
-.hero .label i { font-style: normal; color: #6f88b3; margin: 0 .7em; }
+.hero .label { white-space: nowrap; font: 700 clamp(11px, 1.1vw, 14px) Saira, sans-serif; letter-spacing: .24em; text-transform: uppercase; color: #d6d8dc; }
+.hero .label i { font-style: normal; color: var(--gold); margin: 0 .7em; }
 .gotw-strip .row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 14px; }
-.hero .vs { width: clamp(54px, 6vw, 80px); height: auto; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .5)); }
-.hero .status { font: 600 11px Saira, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: #7d93b8; text-align: center; margin-top: 16px; }
-.hero .status i { font-style: normal; }
-/* Nameplate: navy outline, brushed-silver frame, navy panel with a conference-coloured tab at each end */
-.np { --tab: var(--green); background: #0d1f3c; padding: 3px; width: 100%; max-width: 380px; justify-self: center;
+.hero .vs { font: 900 italic clamp(30px, 3.6vw, 46px)/1 var(--brand); color: transparent; padding: 0 .1em;
+  background: linear-gradient(180deg, #fff3b8 0%, #e2c15a 48%, #a8841f 52%, #e8cf72 100%); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-stroke: 2px #111; filter: drop-shadow(0 0 6px rgba(255, 255, 255, .35)) drop-shadow(0 4px 6px rgba(0, 0, 0, .6)); }
+.hero .status { font: 600 11px Saira, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: #9a9ea6; text-align: center; margin-top: 16px; }
+.hero .status i { font-style: normal; color: #6d6f74; }
+/* Nameplate: black outline, brushed-steel frame, black panel with gold ends */
+.np { background: #0b0b0d; padding: 3px; width: 100%; max-width: 380px; justify-self: center;
   clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
-  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
-.np.blue { --tab: var(--blue); }
-.np .frame { padding: 5px; background: linear-gradient(180deg, #f5f7fa 0%, #ced5dd 40%, #8e98a6 50%, #d3d9e0 60%, #eef1f5 100%);
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .5)); }
+.np .frame { padding: 5px; background: linear-gradient(180deg, #f4f4f5 0%, #c9ccd0 38%, #8d9197 50%, #c6c9ce 62%, #ececee 100%);
   clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px); }
-.np .panel { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 30px 8px 32px;
-  background: linear-gradient(180deg, #213c66 0%, #16305a 50%, #0e2347 100%);
+.np .panel { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 28px 8px 30px;
+  background: linear-gradient(180deg, #2b2b2f 0%, #18181b 55%, #0e0e10 100%);
   clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
-.np .panel::before, .np .panel::after { content: ""; position: absolute; top: 0; bottom: 0; width: 26px; background: linear-gradient(180deg, var(--tab), color-mix(in srgb, var(--tab) 80%, #000)); }
+.np .panel::before, .np .panel::after { content: ""; position: absolute; top: 0; bottom: 0; width: 22px; background: linear-gradient(180deg, #f0d779, #c79f2e 55%, #8a6a12); }
 .np .panel::before { left: 0; clip-path: polygon(0 0, 100% 0, 50% 100%, 0 100%); }
 .np .panel::after { right: 0; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 100%); }
 .np .av { position: relative; z-index: 1; flex: 0 0 auto; width: clamp(34px, 3.4vw, 46px); height: clamp(34px, 3.4vw, 46px); border-radius: 50%; object-fit: cover;
-  background: #0d1f3c; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0d1f3c; }
+  background: #111; box-shadow: 0 0 0 2px #e2c15a, 0 0 0 4px #111; }
 .np .who { min-width: 0; flex: 1; text-align: center; container-type: inline-size; }
-.np b { display: block; white-space: nowrap; font: 800 min(28px, calc(150cqi / var(--len, 10)))/1 "Saira Condensed", "Arial Narrow", sans-serif;
-  text-transform: uppercase; color: #fff; -webkit-text-stroke: 5px #0b1a33; paint-order: stroke fill; }
+.np b { display: block; white-space: nowrap; font: 900 italic min(26px, calc(140cqi / var(--len, 10)))/1.05 var(--brand);
+  text-transform: uppercase; color: #fff; text-shadow: 0 0 8px rgba(255, 255, 255, .25); }
 .np span { display: block; margin-top: 4px; font: 700 clamp(10px, 1vw, 12px) Saira, sans-serif; letter-spacing: .28em; text-transform: uppercase; color: var(--gold); }
 @media (max-width: 640px) {
-  .hero-top { gap: 0 4px; }
-  .hero .crest { width: 150px; }
-  .hero .ribbon-row { margin-top: -8px; }
-  .hero .mascot { filter: drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff) drop-shadow(0 8px 12px rgba(0, 0, 0, .5)); }
-  .gotw-strip .row { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 8px; }
+  .hero-top { gap: 0 2px; }
+  .hero .league { width: 165px; }
+  .gotw-strip .row { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 4px; }
   .np { max-width: 340px; }
 }
 
 /* Section labels in the same style */
-.banner-ribbon { align-self: flex-start; display: inline-block; padding: 4px 26px 2px; border: 3px solid #0d1f3c; border-radius: 4px;
-  background: linear-gradient(180deg, #fde68a 0%, #f2b705 48%, #d49a04 52%, #f7cf4a 100%);
-  font: 900 22px/1.1 "Saira Condensed", "Arial Narrow", sans-serif; letter-spacing: .05em; text-transform: uppercase;
-  color: #0d1f3c; -webkit-text-stroke: 4px #fff; paint-order: stroke fill; }
-.silver-label { align-self: flex-start; display: inline-block; margin-top: 8px; padding: 4px 26px 2px; border: 3px solid #0d1f3c; border-radius: 4px;
-  background: linear-gradient(180deg, #f5f7fa 0%, #ced5dd 45%, #9aa4b1 52%, #e2e6eb 100%);
-  font: 900 22px/1.1 "Saira Condensed", "Arial Narrow", sans-serif; letter-spacing: .05em; text-transform: uppercase; color: #0d1f3c; }
+.banner-ribbon { align-self: flex-start; display: inline-block; padding: 4px 24px 3px; border: 3px solid #111; border-radius: 4px;
+  background: linear-gradient(180deg, #fbeaa6 0%, #e2c15a 45%, #b48c22 55%, #e8cf72 100%);
+  font: 900 italic 21px/1.1 var(--brand); text-transform: uppercase; color: #111; }
+.silver-label { align-self: flex-start; display: inline-block; margin-top: 8px; padding: 4px 24px 3px; border: 3px solid #111; border-radius: 4px;
+  background: linear-gradient(180deg, #f4f4f5 0%, #c9ccd0 40%, #8d9197 52%, #dcdee1 100%);
+  font: 900 italic 21px/1.1 var(--brand); text-transform: uppercase; color: #111; }
+/* Conference shields on recap stories */
+article.story .kicker { flex-direction: row; align-items: center; gap: 14px; }
+article.story .kicker .crest-sm { width: 64px; height: auto; flex: 0 0 auto; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .35)); }
+article.story .kicker .txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
 a.jump:hover { background: var(--accent-soft); }
@@ -221,12 +218,11 @@ a.jump:hover { background: var(--accent-soft); }
 <body>
 <header class="hero" aria-label="APFN Pro League">
   <div class="beams" aria-hidden="true"></div><div class="field" aria-hidden="true"></div>
+  <h1 class="sr-only">APFN Pro League Hub</h1>
   <div class="hero-top">
-    <img class="mascot left" src="img/mascot-armadillo.svg" alt="Armadillo Conference mascot">
-    <div class="center">
-      <img class="crest" src="img/apfn-crest.svg" alt="APFN Pro League crest, Season VI">
-    </div>
-    <img class="mascot right" src="img/mascot-grizzly.svg" alt="Grizzly Conference mascot">
+    <img class="conf left" src="img/art/armadillo-shield.webp" alt="Armadillo Conference shield">
+    <img class="league" src="img/art/league-shield.webp" alt="APFN Pro League shield, Season 6">
+    <img class="conf right" src="img/art/grizzly-shield.webp" alt="Grizzly Conference shield">
     <div class="ribbon-row" id="hero-ribbon"></div>
   </div>
   <div class="gotw-strip" id="hero-gotw"></div>
@@ -297,7 +293,7 @@ function renderRecap() {
   const R = D.recap, el = document.getElementById("recap");
   if (!R) { el.innerHTML = `<p class="note">The first recap appears once week 1 is final.</p>`; return; }
   el.innerHTML = R.leagues.map(L => `<article class="story">
-    <div class="kicker"><span class="eyebrow">${esc(L.name)}${L.name === "Robber" ? " League" : " Conference"} · week ${R.week}</span><h2>${esc(L.headline)}</h2></div>
+    <div class="kicker">${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name] ? `<img class="crest-sm" src="img/art/${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name]}-shield.webp" alt="">` : ""}<div class="txt"><span class="eyebrow">${esc(L.name)}${L.name === "Robber" ? " League" : " Conference"} · week ${R.week}</span><h2>${esc(L.headline)}</h2></div></div>
     <div class="prose">${L.paragraphs.map(p => `<p>${esc(p)}</p>`).join("")}${L.byline ? `<p class="vs">${esc(L.byline)}</p>` : ""}</div>
     <div class="scores"><h3>Final scores</h3><div class="list">${L.games.map(([w, l]) => `<div class="game">
       <b class="n">${esc(T[w.team].team)}</b><b class="num">${f2(w.pts)}</b>
@@ -355,7 +351,7 @@ function leagueBlock() {
 function pastTournaments() {
   const R = D.records, who = id => esc(R.names[id] || "Vacant team");
   return `<div class="block"><h2>League tournaments</h2><p class="note">The top 8 in the combined table after week 14 play for the league title; 9–16 play the consolation bracket. Brackets are rebuilt from Sleeper scores, and the champion matches the commissioner's list every year. 2024 uses the commissioner's own published seeding.</p>
-    ${R.tournaments.map(t => `<details class="season"><summary>Season ${roman(t.season - 2020)} · ${t.season} · champion ${who(t.champion)}</summary><div>
+    ${R.tournaments.map(t => `<details class="season"><summary>Season ${t.season - 2020} · ${t.season} · champion ${who(t.champion)}</summary><div>
       <div class="banner-ribbon">Playoffs</div>${bracketView(t.title, who)}<div class="silver-label">Consolation</div>${bracketView(t.consolation, who)}
       <p class="vs">${t.official_seeds ? "Seeded from the commissioner's published table." : "Seeds rebuilt from Sleeper records: wins, then points for, through week 14."}</p></div></details>`).join("")}</div>`;
 }
@@ -516,16 +512,17 @@ document.getElementById("pin-cancel").addEventListener("click", () => document.g
 // ---- banner ------------------------------------------------------------------------------------
 function roman(n) { return [[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]].reduce((s, [v, r]) => { while (n >= v) { s += r; n -= v; } return s; }, ""); }
 function renderHero() {
-  const seasonNo = Number(D.season) - 2020, L = D.league, week = D.week_now;  // 2021 was Season I
+  const seasonNo = Number(D.season) - 2020, L = D.league, week = D.week_now;  // 2021 was Season 1
   const rank = Object.fromEntries(L.table.map(t => [t.key, t.rank]));
   const plate = (k, tag) => {
     const t = T[k], pic = t.avatar ? `<img class="av" src="${esc(t.avatar)}" alt="" referrerpolicy="no-referrer">` : "";
-    return `<div class="np ${t.conf === "Grizzly" ? "blue" : ""}"><div class="frame"><div class="panel">${pic}<div class="who"><b style="--len:${Math.max(t.manager.length, 8)}">${esc(t.manager)}</b><span>${esc(tag)}</span></div></div></div></div>`;
+    return `<div class="np"><div class="frame"><div class="panel">${pic}<div class="who"><b style="--len:${Math.max(t.manager.length, 8)}">${esc(t.manager)}</b><span>${esc(tag)}</span></div></div></div></div>`;
   };
-  let ribbon = `Season ${roman(seasonNo)}`, label = "", row = "";
+  // The league shield already reads "Season 6"; the gold ribbon is only for the playoffs and the champion.
+  let ribbon = "", label = "", row = "";
   const titleRound = L.title.find(r => r.week === week);
   if (L.champion) {
-    ribbon = "Champion"; label = `APFN Pro League<i>|</i>Season ${roman(seasonNo)} champion`;
+    ribbon = "Champion"; label = `APFN Pro League<i>|</i>Season ${seasonNo} champion`;
     row = `<div class="row" style="grid-template-columns:minmax(0,380px)">${plate(L.champion, T[L.champion].team)}</div>`;
   } else {
     let a, b, tags;
@@ -536,13 +533,11 @@ function renderHero() {
       const g = L.week_games.games[0];  // game of the week: first in the ranked list
       label = `Week ${week}<i>|</i>Game of the week`; [a, b] = [g.a, g.b]; tags = [`League #${rank[a]}`, `League #${rank[b]}`];
     }
-    if (a) row = `<div class="row">${plate(a, tags[0])}<img class="vs" src="img/vs-badge.svg" alt="versus">${plate(b, tags[1])}</div>`;
+    if (a) row = `<div class="row">${plate(a, tags[0])}<span class="vs" role="img" aria-label="versus">VS</span>${plate(b, tags[1])}</div>`;
   }
-  // The artwork includes a Season VI ribbon; any other wording uses the same style in CSS.
-  document.getElementById("hero-ribbon").innerHTML = ribbon === "Season VI"
-    ? `<img class="ribbon-img" src="img/season-vi-banner.svg" alt="Season VI">` : `<span class="ribbon-gold">${esc(ribbon)}</span>`;
+  document.getElementById("hero-ribbon").innerHTML = ribbon ? `<span class="ribbon-gold">${esc(ribbon)}</span>` : "";
   document.getElementById("hero-gotw").innerHTML = row ? `<div class="label">${label}</div>${row}` : "";
-  document.getElementById("hero-status").innerHTML = `${D.season} season<i> / </i>through week ${last}<i> / </i>updated ${esc(D.built)}`;
+  document.getElementById("hero-status").innerHTML = `Season ${seasonNo}<i> / </i>${D.season}<i> / </i>through week ${last}<i> / </i>updated ${esc(D.built)}`;
 }
 
 function show(tab) {

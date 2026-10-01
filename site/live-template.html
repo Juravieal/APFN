@@ -4,24 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>APFN Live</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Exo+2:ital,wght@1,900&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 /* Layout: scoreboard wall. Alerts strip on top, one card per game, lineups folded inside each card. */
 :root {
-  --bg: #f2f4f6; --surface: #ffffff; --sunken: #e7ebef; --line: #d3dae1;
-  --fg: #15202b; --fg2: #4a5866; --fg3: #6f7d8b;
-  --accent: #1f5a8a; --accent-soft: #d9e6f2;
-  --loot: #8f5a08; --loot-soft: #f6e8cc;
+  --bg: #eceef1; --surface: #ffffff; --sunken: #e2e5e9; --line: #cdd2d8;
+  --fg: #16181c; --fg2: #4a4f57; --fg3: #6f757e;
+  --accent: #8a6a12; --accent-soft: #f1e6c4;
+  --loot: #8a6a12; --loot-soft: #f1e6c4;
   --win: #1e6b43; --win-soft: #dcefe4; --loss: #a23a2a; --loss-soft: #f6dfda;
   --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --brand: "Exo 2", "Arial Black", sans-serif;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) { :root {
-  --bg: #0f151b; --surface: #182029; --sunken: #121920; --line: #2a3541;
-  --fg: #e7edf2; --fg2: #aab6c2; --fg3: #8492a0;
-  --accent: #7db4e6; --accent-soft: #1d3347;
-  --loot: #e5b155; --loot-soft: #3a2e17;
+  --bg: #111214; --surface: #1b1c20; --sunken: #15161a; --line: #2e3036;
+  --fg: #eceef0; --fg2: #b4b8bf; --fg3: #8b9098;
+  --accent: #d9b84e; --accent-soft: #3a3220;
+  --loot: #e2c15a; --loot-soft: #3a3220;
   --win: #6fcb97; --win-soft: #173326; --loss: #f0907f; --loss-soft: #3d201c;
   color-scheme: dark } }
 * { box-sizing: border-box; }
@@ -32,12 +33,20 @@ h1 { font-size: 40px; } h3 { font-size: 15px; font-weight: 600; letter-spacing: 
 p { margin: 0; }
 .num { font-variant-numeric: tabular-nums; }
 .vs { color: var(--fg3); font-size: 12px; }
+/* Compact league header in the steel-and-gold style of the hub */
+header.top { color: #fff; margin-inline: -16px; padding: 14px 16px 12px !important; border-bottom: 3px solid #8a6a12 !important;
+  background: radial-gradient(80% 140% at 30% 0%, #3b3424 0%, #22201b 45%, #111214 100%); }
+header.top .brandrow { display: flex; align-items: center; gap: 14px; }
+header.top .brandrow img { width: 64px; height: auto; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .6)); }
+header.top h1 { font: 900 italic 38px/1 var(--brand); text-transform: none; letter-spacing: .01em; }
+header.top .eyebrow { color: #e2c15a; }
+header.top .meta { color: #b4b8bf !important; }
 header.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 24px; border-bottom: 3px solid var(--fg); padding-bottom: 12px; }
 header.top .meta { color: var(--fg2); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
 .eyebrow { font-family: var(--display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-size: 14px; }
 nav.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 nav.tabs button { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--fg2); border-radius: 4px; cursor: pointer; }
-nav.tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+nav.tabs button[aria-selected="true"] { background: linear-gradient(180deg, #f3dc86, #d4ad3a 55%, #b48c22); color: #111; border-color: #8a6a12; }
 button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .banner { background: var(--loss-soft); border-radius: 4px; padding: 10px 14px; }
 .alerts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 10px; }
@@ -76,7 +85,7 @@ a.jump:hover { background: var(--accent-soft); }
 <body>
 <div class="wrap">
   <header class="top">
-    <div><div class="eyebrow" id="eyebrow">Loading</div><h1>APFN Live</h1></div>
+    <div class="brandrow"><img src="img/art/league-shield.webp" alt="APFN Pro League shield"><div><div class="eyebrow" id="eyebrow">Loading</div><h1>APFN Live</h1></div></div>
     <div class="meta" id="meta"></div>
   </header>
   <div class="banner" id="error" hidden></div>
