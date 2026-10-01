@@ -614,7 +614,7 @@ function renderGuillotine() {
   if (!G) { el.innerHTML = ""; return; }
   const lastW = G.weeks[G.weeks.length - 1], low = G.block[0], next = G.block[1];
   const champs = G.champions.filter(c => c.champion);
-  const repeat = champs.length > 1 && champs.every(c => c.champion === champs[0].champion) ? champs[0].champion : null;
+  const holder = champs[champs.length - 1];
   const block = `<div class="scroll"><table class="chop">
     <thead><tr><th class="lr">#</th><th>Manager</th><th class="r">Season</th><th class="r">Last week</th><th class="r">Above the line</th><th class="r">FAAB</th></tr></thead>
     <tbody>${[...G.block].reverse().map((b, i, a) => `<tr class="${i === a.length - 1 ? "chopped cut" : ""}"><td class="lr">${i + 1}</td>${gWho(b.team)}
@@ -633,13 +633,13 @@ function renderGuillotine() {
       <div class="tile"><span class="k">Still standing</span>${standing}</div>
       ${low && !G.final ? `<div class="tile"><span class="k">On the block</span><span class="v">${esc(T[low.team].manager)}</span><span class="s">${f2(low.total)} points${next ? `, ${f2(next.cushion)} behind ${esc(T[next.team].manager)}` : ""}</span></div>` : ""}
       ${lastW ? `<div class="tile"><span class="k">Last chopped</span><span class="v">${esc(T[lastW.chopped].manager)}</span><span class="s">Week ${lastW.week}, missed by ${f2(lastW.cushion)}</span></div>` : ""}
-      ${repeat ? `<div class="tile"><span class="k">Two-time champion</span><span class="v">${esc(repeat)}</span><span class="s">Has won all ${champs.length} seasons so far</span></div>` : ""}
+      ${holder ? `<div class="tile"><span class="k">Defending champion</span><span class="v">${esc(holder.champion)}</span><span class="s">${esc(holder.name)}, beat ${esc(holder.runner_up)} in the final</span></div>` : ""}
     </div>
     ${G.final ? "" : `<div class="block"><h2>The chopping block</h2><p class="note">Every team still alive, by season points. The bottom team goes next unless it outscores someone above it this week.</p>${block}</div>`}
     ${lastW ? `<div class="block"><h2>Week ${lastW.week}</h2>${chopTable(lastW)}</div>` : ""}
     <div class="block"><h2>The graveyard</h2>${graveyard}</div>
     <div class="block"><h2>Waiver frenzy</h2><p class="note">The biggest FAAB bids this season. Chopped rosters go to free agency, so this is where the dead teams' players end up.</p>${bids}</div>
-    <div class="block"><h2>Champions</h2><div class="list"><ul class="plain">${G.champions.map(c => `<li><div><b>${esc(c.champion || "—")}</b> <span class="vs">${esc(c.name)} · ${c.teams} teams</span></div><div class="num">${c.season}</div></li>`).join("")}</ul></div></div>`;
+    <div class="block"><h2>Champions</h2><div class="list"><ul class="plain">${G.champions.map(c => `<li><div><b>${esc(c.champion || "—")}</b> <span class="vs">${esc(c.name)} · ${c.teams} teams${c.runner_up ? ` · beat ${esc(c.runner_up)} ${f2(c.scores[0])}–${f2(c.scores[1])} in week ${c.week}` : ""}</span></div><div class="num">${c.season}</div></li>`).join("")}</ul><p class="note">Replayed from Sleeper's scores by the league's rules. Sleeper's own "winner" for these leagues comes from head-to-head playoffs that do not count.</p></div></div>`;
 }
 
 function renderRecords() {
@@ -656,7 +656,7 @@ function renderRecords() {
       <div class="scroll"><table><thead><tr><th>Season</th><th>League champion</th>${confs.map(c => `<th>${esc(c)} champion</th><th>Runner-up</th>`).join("")}</tr></thead>
       <tbody>${years.map(y => `<tr><td class="rank">${y}</td><td>${R.league_champions[y] ? `<span class="chip loot">Champion</span> <b>${esc(R.league_champions[y])}</b>` : ""}</td>${confs.map(c => { const x = R.champions.find(k => k.season === y && k.conf === c); return x ? `<td><b>${N(x.champion)}</b></td><td>${N(x.runner_up)}</td>` : "<td></td><td></td>"; }).join("")}</tr>`).join("")}</tbody></table></div>
       <p class="note">League champions are from the league's Hall of Champions. Conference champions and runners-up are the finals of each conference's Sleeper bracket.</p></div>
-    ${G && G.champions.length ? `<div class="block"><h2>Guillotine League champions</h2><div class="list"><ul class="plain">${G.champions.map(c => `<li><div><span class="chip loot">Champion</span> <b>${esc(c.champion || "—")}</b> <span class="vs">${esc(c.name)} · ${c.teams} teams</span></div><div class="num">${c.season}</div></li>`).join("")}</ul></div></div>` : ""}
+    ${G && G.champions.length ? `<div class="block"><h2>Guillotine League champions</h2><div class="list"><ul class="plain">${G.champions.map(c => `<li><div><span class="chip loot">Champion</span> <b>${esc(c.champion || "—")}</b> <span class="vs">${esc(c.name)} · ${c.teams} teams${c.runner_up ? ` · beat ${esc(c.runner_up)}` : ""}</span></div><div class="num">${c.season}</div></li>`).join("")}</ul></div></div>` : ""}
     <div class="block"><h2>All-time managers</h2>
       <p class="note">Regular-season records. Greyed names are not in the league this season. Managers who changed Sleeper accounts are combined under their current name.</p>
       <div class="scroll"><table><thead><tr><th>Manager</th><th class="r">Seasons</th><th>Record</th><th class="r">Win %</th><th class="r">Pts / game</th><th class="r">Playoffs</th><th class="r">Finals</th><th>League titles</th><th>Conference titles</th></tr></thead>

@@ -492,14 +492,28 @@ def guillotine_section():
 
     history = json.loads((ROOT / "content" / "league-history.json").read_text(encoding="utf-8"))
     alias = {old: p["known_as"] for p in history.get("same_person", []) for old in p["earlier_accounts"]}
+    # Past champions, replayed from the scores by the same rules. Sleeper's own "league winner" field
+    # comes from its head-to-head playoffs, which mean nothing here, so it is not used.
     champions = []
     for x in load("history/guillotine_index.json") if (RAW / "history" / "guillotine_index.json").exists() else []:
         h = f"history/{x['league_id']}"
-        win = int((load(f"{h}/league.json").get("metadata") or {}).get("latest_league_winner_roster_id") or 0)
-        owner = next((r["owner_id"] for r in load(f"{h}/rosters.json") if r["roster_id"] == win), None)
-        name = alias.get(owner) or next((u["display_name"] for u in load(f"{h}/users.json") if u["user_id"] == owner), None)
-        champions.append({"season": x["season"], "name": x["name"], "teams": load(f"{h}/league.json")["total_rosters"],
-                          "champion": name})
+        past = load(f"{h}/league.json")
+        users = {u["user_id"]: u["display_name"] for u in load(f"{h}/users.json")}
+        name = {r["roster_id"]: alias.get(r["owner_id"]) or users.get(r["owner_id"]) for r in load(f"{h}/rosters.json")}
+        left, tot, result = set(name), defaultdict(float), None
+        for w in range(past["settings"].get("start_week", 1), 19):
+            ms = {m["roster_id"]: m["points"] for m in load(f"{h}/matchups_{w:02d}.json")}
+            if not any(ms.get(r) for r in left):
+                break
+            if len(left) == 2:
+                a, b = sorted(left, key=lambda r: -ms.get(r, 0))
+                result = {"champion": name[a], "runner_up": name[b], "week": w, "scores": [ms.get(a, 0), ms.get(b, 0)]}
+                break
+            for r in left:
+                tot[r] += ms.get(r, 0)
+            left.discard(min(left, key=lambda r: tot[r]))
+        champions.append({"season": x["season"], "name": x["name"], "teams": past["total_rosters"],
+                          **(result or {"champion": None})})
 
     return {
         "teams": [{"key": t["key"], "manager": t["manager"], "team": t["team"], "avatar": t["avatar"], "conf": "Guillotine"}
