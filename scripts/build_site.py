@@ -175,16 +175,50 @@ def game_lines(lg, week):
     return sorted(out, key=lambda g: g[0]["pts"] - g[1]["pts"])
 
 
-def recap(leagues):
-    """Written recap for the last finished week, if content/recaps has one, plus the game lines."""
+def ranks_entering(week, confs, rob):
+    """Each team's league rank, conference rank and Robber League rank going into `week`
+    (standings through the week before, wins then points for), as the commissioner shows them."""
+    through = week - 1
+    feed = lambda lid, lg: (lid, {r["roster_id"]: r["owner_id"] for r in lg["rosters"]},
+                            {w: load(f"leagues/{lid}/matchups_{w:02d}.json") for w in range(1, through + 1)})
+    teams = tournament.teams_from_matchups([feed(lid, lg) for lid, lg in confs.items()])
+    tournament.add_league_games(teams, {w: g for w, g in load_schedule(confs).items() if w <= through})
+    out = {k: {"lr": i + 1} for i, k in enumerate(tournament.standings(teams, through))}
+    for lid in confs:
+        own = {k: {"points": t["points"], "games": [g for g in t["games"] if g[2] == "conference"]}
+               for k, t in teams.items() if k.startswith(f"{lid}:")}
+        for i, k in enumerate(tournament.standings(own, through)):
+            out[k]["cr"] = i + 1
+    rteams = tournament.teams_from_matchups([feed(ROBBER, rob)])
+    for i, k in enumerate(tournament.standings(rteams, through)):
+        out[k] = {"lr": i + 1}
+    return out
+
+
+def recap(leagues, confs, rob):
+    """Written recap for the last finished week, if content/recaps has one, plus the game lines
+    with each team's ranks going into the week, most important game first."""
     if not DONE:
         return None
     week = DONE[-1]
     path = ROOT / "content" / "recaps" / f"{STATE['season']}-week-{week:02d}.json"
     prose = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    return {"week": week, "leagues": [
-        {"name": name, **prose.get(name, {"headline": f"Week {week} results", "paragraphs": []}),
-         "games": game_lines(lg, week)} for name, lg in leagues]}
+    ranks = ranks_entering(week, confs, rob)
+    out = []
+    for name, lg in leagues:
+        games = game_lines(lg, week)
+        for g in games:
+            for side in g:
+                side.update(ranks.get(side["team"], {}))
+            g.sort(key=lambda s: s.get("lr", 99))  # higher-ranked team first, as in the commissioner's tables
+        games.sort(key=lambda g: (g[0].get("lr", 99) + g[1].get("lr", 99), g[0].get("lr", 99)))
+        out.append({"name": name, **prose.get(name, {"headline": f"Week {week} results", "paragraphs": []}),
+                    "games": games, "robber": name == "Robber"})
+    # Game of the week: the most important conference game across both conferences.
+    conf_games = [(g[0]["lr"] + g[1]["lr"], g[0]["lr"], g) for L in out if not L["robber"] for g in L["games"]]
+    if conf_games:
+        min(conf_games, key=lambda x: x[:2])[2][0]["gotw"] = True
+    return {"week": week, "leagues": out}
 
 
 def robber_section(lg):
@@ -318,6 +352,19 @@ def robber_waivers(rob):
             "now": now, "matches": now == entry["after"]}
 
 
+def load_schedule(confs):
+    """Cross-conference league games by week, as roster keys, from content/league-schedule-<season>.json."""
+    key_of = {t["manager"].lower(): t["key"] for lg in confs.values() for t in lg["teams"].values()}
+    path = ROOT / "content" / f"league-schedule-{STATE['season']}.json"
+    schedule = {}
+    if path.exists():
+        for week, games in json.loads(path.read_text(encoding="utf-8"))["weeks"].items():
+            for a, b in games:
+                if a.lower() in key_of and b.lower() in key_of:
+                    schedule.setdefault(int(week), []).append((key_of[a.lower()], key_of[b.lower()]))
+    return schedule
+
+
 def league_season(confs):
     """League table, league games and the league tournament for the current season."""
     feed = [(lid, {r["roster_id"]: r["owner_id"] for r in lg["rosters"]},
@@ -445,7 +492,7 @@ def compute():
         "playoff_teams": next(iter(confs.values()))["league"]["settings"]["playoff_teams"],
         "cross": cross, "conf_ppg": {n: round(sum(t["ppg"] for t in pool if t["conf"] == n) / 10, 2) for n in names},
         "awards": awards(pool, DONE[-1]) if DONE else [],
-        "recap": recap([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)]),
+        "recap": recap([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)], confs, rob),
         "upcoming": {CONFERENCES[lid]: upcoming(lg) for lid, lg in confs.items()},
         "records": build_records(),
         "robber": {"teams": rob_teams, "upcoming": upcoming(rob),

@@ -100,11 +100,27 @@ ul.plain li > div { min-width: 0; overflow-wrap: anywhere; }
 .card .head { font-weight: 600; overflow-wrap: anywhere; }
 .card ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
 .card li span { color: var(--fg3); }
-article.story { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 16px 32px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+article.story { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
 article.story:last-child { border-bottom: 0; }
 article.story .kicker { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; }
 article.story h2 { font-size: 30px; }
-article.story .prose { display: flex; flex-direction: column; gap: 10px; max-width: 66ch; font-size: 15px; line-height: 1.55; }
+article.story .prose { display: flex; flex-direction: column; gap: 10px; max-width: 72ch; font-size: 15px; line-height: 1.6; }
+article.story .prose b { font-weight: 700; color: var(--fg); }
+/* Final scores, in the commissioner's table layout: league rank bold, conference rank italic */
+.finals { max-width: 760px; }
+.finals table { width: 100%; }
+.finals th { font-size: 12px; }
+.finals th.lr, .finals td.lr { width: 1%; text-align: center; font-weight: 700; }
+.finals th.cr, .finals td.cr { width: 1%; text-align: center; font-style: italic; }
+.finals td.lr { font-size: 16px; } .finals td.cr { color: var(--fg2); }
+.finals td.who { white-space: normal; } .finals td.who span { display: block; color: var(--fg3); font-size: 12px; }
+.finals td.pts { text-align: right; font-size: 15px; } .finals td.pts.won { font-weight: 700; } .finals td.pts.lost { color: var(--fg2); }
+.finals td.top { color: var(--fg3); font-size: 12px; white-space: normal; }
+.finals tbody + tbody tr:first-child td { border-top: 8px solid var(--bg); }
+.finals tr.gotw-row td { background: linear-gradient(180deg, #f3dc86, #d4ad3a 55%, #b48c22); color: #111; padding: 4px 10px;
+  font: 900 italic 13px/1.2 var(--brand); letter-spacing: .06em; text-transform: uppercase; text-align: center; }
+.finals caption { caption-side: bottom; text-align: left; padding: 6px 2px 0; color: var(--fg3); font-size: 12px; }
+@media (max-width: 560px) { .finals td.top { display: none; } .finals th.top { display: none; } }
 article.story .scores { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .game { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 12px; }
 .game + .game { border-top: 1px solid var(--line); }
@@ -289,16 +305,37 @@ function rankTable(teams, showConf) {
       <td>${weekCells(t)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
+// Bold every manager's Sleeper name in recap text, so people skimming can find their mentions.
+const NAME_RE = (() => {
+  const names = [...new Set(Object.values(T).map(t => t.manager))].sort((a, b) => b.length - a.length)
+    .map(n => esc(n).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`(?<![\\w])(${names.join("|")})(?![\\w])`, "g");
+})();
+const boldNames = html => html.replace(NAME_RE, "<b>$1</b>");
+
+function finalScores(L) {
+  const robber = L.robber;
+  const row = (s, won) => `<tr><td class="lr">${s.lr ?? ""}</td>${robber ? "" : `<td class="cr">${s.cr ?? ""}</td>`}
+    <td class="who"><b>${esc(T[s.team].manager)}</b><span>${esc(T[s.team].team)}</span></td>
+    <td class="pts num ${won ? "won" : "lost"}">${f2(s.pts)}</td><td class="top">${esc(s.star)} ${f1(s.star_pts)}</td></tr>`;
+  const cols = robber ? 4 : 5;
+  return `<div class="finals"><h3>Final scores</h3><div class="scroll"><table>
+    <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">Score</th><th class="top">Top scorer</th></tr></thead>
+    ${L.games.map(g => {
+      const win = g[0].pts >= g[1].pts ? 0 : 1;
+      return `<tbody>${g[0].gotw ? `<tr class="gotw-row"><td colspan="${cols}">★ Game of the week ★</td></tr>` : ""}${row(g[0], win === 0)}${row(g[1], win === 1)}</tbody>`;
+    }).join("")}
+    <caption>${robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."} Most important games first.</caption>
+  </table></div></div>`;
+}
+
 function renderRecap() {
   const R = D.recap, el = document.getElementById("recap");
   if (!R) { el.innerHTML = `<p class="note">The first recap appears once week 1 is final.</p>`; return; }
   el.innerHTML = R.leagues.map(L => `<article class="story">
     <div class="kicker">${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name] ? `<img class="crest-sm" src="img/art/${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name]}-shield.webp" alt="">` : ""}<div class="txt"><span class="eyebrow">${esc(L.name)}${L.name === "Robber" ? " League" : " Conference"} · week ${R.week}</span><h2>${esc(L.headline)}</h2></div></div>
-    <div class="prose">${L.paragraphs.map(p => `<p>${esc(p)}</p>`).join("")}${L.byline ? `<p class="vs">${esc(L.byline)}</p>` : ""}</div>
-    <div class="scores"><h3>Final scores</h3><div class="list">${L.games.map(([w, l]) => `<div class="game">
-      <b class="n">${esc(T[w.team].team)}</b><b class="num">${f2(w.pts)}</b>
-      <span class="n lose">${esc(T[l.team].team)}</span><span class="num lose">${f2(l.pts)}</span>
-      <span class="star">${esc(w.star)} ${f1(w.star_pts)} · ${esc(l.star)} ${f1(l.star_pts)}</span></div>`).join("")}</div></div>
+    ${finalScores(L)}
+    <div class="prose">${L.paragraphs.map(p => `<p>${boldNames(esc(p))}</p>`).join("")}${L.byline ? `<p class="vs">${esc(L.byline)}</p>` : ""}</div>
   </article>`).join("");
 }
 
