@@ -22,7 +22,7 @@ SYSTEM = """You write the weekly recap for a fantasy football league called APFN
 twenty friends who play in it. There are two ten-team conferences, Armadillo and Grizzly, and a \
 separate ten-team Robber League where each week's winner steals one player from the team they beat.
 
-Write one story per league from the facts you are given: a headline, then the games one at a time.
+Write one story per section from the facts you are given, in the order given: a headline, then the games one at a time, in the order they are listed. The first game in a section is the one the headline leads with: the game of the week (marked game_of_the_week), or in a conference without it, the Conference Spotlight (marked conference_spotlight). In weeks with cross-conference league games, "League" (league play) is its own section and comes first.
 For each game, write one or two paragraphs that open with the Sleeper name of a manager in that game,
 then a final paragraph that is a single pithy, punchy one-liner about the matchup. The one-liner names
 no manager outside that game. A league-wide note can close the story as its last paragraph.
@@ -42,7 +42,7 @@ SCHEMA = {
         "type": "object", "additionalProperties": False, "required": ["headline", "paragraphs"],
         "properties": {"headline": {"type": "string"},
                        "paragraphs": {"type": "array", "items": {"type": "string"}}},
-    } for name in LEAGUES.values()},
+    } for name in [*LEAGUES.values(), "League"]},
 }
 
 
@@ -74,6 +74,31 @@ def facts(week):
                 })
             games.append({"winner": sides[0], "loser": sides[1], "margin": round(sides[0]["points"] - sides[1]["points"], 2)})
         out["leagues"][name] = {"games": games}
+
+    # Put the games in the order the page shows them and mark the featured ones: the game of the
+    # week, each conference's spotlight, and in weeks 5-14 the cross-conference league games.
+    page = next(R for R in data["recaps"] if R["week"] == week)
+    pair = lambda names: frozenset(names)
+    ordered = {}
+    for L in page["leagues"]:
+        if L["name"] == "League":
+            ordered["League"] = {"games": [{
+                "winner": who(max(g, key=lambda s: s["pts"])["team"]), "loser": who(min(g, key=lambda s: s["pts"])["team"]),
+                "points": sorted((round(s["pts"], 2) for s in g), reverse=True),
+                **({"game_of_the_week": True} if g[0].get("gotw") else {})} for g in L["games"]]}
+            continue
+        mine = {pair((x["winner"]["manager"], x["loser"]["manager"])): x for x in out["leagues"][L["name"]]["games"]}
+        games = []
+        for g in L["games"]:
+            x = mine[pair(who(s["team"]) for s in g)]
+            x.pop("game_of_the_week", None), x.pop("conference_spotlight", None)
+            if g[0].get("gotw"):
+                x["game_of_the_week"] = True
+            if g[0].get("spot"):
+                x["conference_spotlight"] = True
+            games.append(x)
+        ordered[L["name"]] = {"games": games}
+    out["leagues"] = ordered
 
     rec = data["records"]
     n = rec["names"]

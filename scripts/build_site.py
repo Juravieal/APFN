@@ -175,10 +175,33 @@ def game_lines(lg, week):
     return sorted(out, key=lambda g: g[0]["pts"] - g[1]["pts"])
 
 
+def preseason_ranks(confs):
+    """Week 1 has no standings, so conference teams are ranked by last season's regular-season
+    points for (earlier accounts folded in; a manager new to the league ranks last)."""
+    history = json.loads((ROOT / "content" / "league-history.json").read_text(encoding="utf-8"))
+    alias = {old: p["main_account"] for p in history.get("same_person", []) for old in p["earlier_accounts"]}
+    prev = str(int(STATE["season"]) - 1)
+    pf = {}
+    for x in load("history/index.json"):
+        if x["season"] == prev:
+            for r in load(f"history/{x['league_id']}/rosters.json"):
+                st = r["settings"]
+                pf[alias.get(r["owner_id"], r["owner_id"])] = st["fpts"] + st.get("fpts_decimal", 0) / 100
+    pts = {f"{lid}:{r['roster_id']}": pf.get(r["owner_id"], -1) for lid, lg in confs.items() for r in lg["rosters"]}
+    out = {k: {"lr": i + 1, "pre": True} for i, k in enumerate(sorted(pts, key=lambda k: -pts[k]))}
+    for lid in confs:
+        for i, k in enumerate(sorted((k for k in pts if k.startswith(f"{lid}:")), key=lambda k: -pts[k])):
+            out[k]["cr"] = i + 1
+    return out
+
+
 def ranks_entering(week, confs, rob):
     """Each team's league rank, conference rank and Robber League rank going into `week`
-    (standings through the week before, wins then points for), as the commissioner shows them."""
+    (standings through the week before, wins then points for), as the league's own tables show them.
+    Week 1 uses preseason ranks for the conferences and has no Robber League rank."""
     through = week - 1
+    if through == 0:
+        return preseason_ranks(confs)
     feed = lambda lid, lg: (lid, {r["roster_id"]: r["owner_id"] for r in lg["rosters"]},
                             {w: load(f"leagues/{lid}/matchups_{w:02d}.json") for w in range(1, through + 1)})
     teams = tournament.teams_from_matchups([feed(lid, lg) for lid, lg in confs.items()])
@@ -219,18 +242,41 @@ def preview(confs, rob):
     pool = out["league"] if league_week == week else [g for gs in out["conferences"].values() for g in gs]
     if pool:
         min(pool, key=lambda g: (g[0]["lr"] + g[1]["lr"], g[0]["lr"]))[0]["gotw"] = True
+    # Each conference's top game is its Conference Spotlight, unless it is the game of the week.
+    for games in out["conferences"].values():
+        if games and not games[0][0].get("gotw"):
+            games[0][0]["spot"] = True
     return out
+
+
+def league_lines(confs, week):
+    """Cross-conference league games for a week, scored with each team's points from its own
+    conference matchup that week."""
+    def side(key):
+        lid, rid = key.split(":")
+        m = confs[lid]["matchups"][week][int(rid)]
+        pts = m.get("players_points") or {}
+        star = max(m["starters"], key=lambda p: pts.get(p, 0))
+        return {"team": key, "pts": m["points"], "star": pname(star), "star_pts": pts.get(star, 0)}
+    return [[side(a), side(b)] for a, b in load_schedule(confs).get(week, [])]
 
 
 def recap(leagues, confs, rob, week):
     """Written recap for a finished week, if content/recaps has one, plus the game lines
-    with each team's ranks going into the week, most important game first."""
+    with each team's ranks going into the week, most important game first.
+
+    Order (the league's rule): in league-play weeks, League play leads with the game of the week,
+    then each conference opens with its Conference Spotlight (its top-ranked game). Before league
+    play, the conference holding the game of the week goes first and the other conference's top
+    game is its Spotlight. The Robber League goes last and has neither."""
     path = ROOT / "content" / "recaps" / f"{STATE['season']}-week-{week:02d}.json"
     prose = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     ranks = ranks_entering(week, confs, rob)
     out = []
-    for name, lg in leagues:
-        games = game_lines(lg, week)
+    league_games = league_lines(confs, week)
+    sections = ([("League", None)] if league_games else []) + leagues
+    for name, lg in sections:
+        games = league_games if lg is None else game_lines(lg, week)
         for g in games:
             for side in g:
                 side.update(ranks.get(side["team"], {}))
@@ -238,12 +284,19 @@ def recap(leagues, confs, rob, week):
         games.sort(key=lambda g: (g[0].get("lr", 99) + g[1].get("lr", 99), g[0].get("lr", 99)))
         out.append({"name": name, **prose.get(name, {"headline": f"Week {week} results", "paragraphs": []}),
                     "games": games, "robber": name == "Robber"})
-    # Game of the week: the most important conference game across both conferences.
-    # Week 1 has no standings to rank from, so it has no game of the week.
-    conf_games = [(g[0]["lr"] + g[1]["lr"], g[0]["lr"], g) for L in out if not L["robber"] for g in L["games"]
-                  if "lr" in g[0] and "lr" in g[1]]
-    if conf_games:
-        min(conf_games, key=lambda x: x[:2])[2][0]["gotw"] = True
+    # Game of the week: the most important league game in league-play weeks, otherwise the most
+    # important conference game. Each conference's top game is otherwise its Spotlight.
+    ranked = lambda g: "lr" in g[0] and "lr" in g[1]
+    pool = [g for L in out if not L["robber"] and (L["name"] == "League" or not league_games)
+            for g in L["games"] if ranked(g)]
+    if pool:
+        min(pool, key=lambda g: (g[0]["lr"] + g[1]["lr"], g[0]["lr"]))[0]["gotw"] = True
+    for L in out:
+        top = L["games"][0] if L["games"] else None
+        if L["name"] not in ("League", "Robber") and top and ranked(top) and not top[0].get("gotw"):
+            top[0]["spot"] = True
+    # League play first; before it starts, the conference holding the game of the week goes first.
+    out.sort(key=lambda L: (L["name"] != "League", L["robber"], not any(g[0].get("gotw") for g in L["games"])))
     return {"week": week, "leagues": out}
 
 

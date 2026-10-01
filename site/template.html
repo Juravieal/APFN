@@ -118,6 +118,8 @@ article.story .prose b.un, b.un { color: var(--accent); }
 .finals td.pts { text-align: right; font-size: 15px; } .finals td.pts.won { font-weight: 700; } .finals td.pts.lost { color: var(--fg2); }
 .finals td.top { color: var(--fg3); font-size: 12px; white-space: normal; }
 .finals tbody + tbody tr:first-child td { border-top: 8px solid var(--bg); }
+.finals tr.spot-row td, .finals .spot-bar { background: linear-gradient(180deg, #f1f3f5, #c3c8ce 55%, #959ca4); color: #111; padding: 4px 10px;
+  font: 900 italic 13px/1.2 var(--brand); letter-spacing: .06em; text-transform: uppercase; text-align: center; }
 .finals tr.gotw-row td, .finals .gotw-bar { background: linear-gradient(180deg, #f3dc86, #d4ad3a 55%, #b48c22); color: #111; padding: 4px 10px;
   font: 900 italic 13px/1.2 var(--brand); letter-spacing: .06em; text-transform: uppercase; text-align: center; }
 .finals caption { caption-side: bottom; text-align: left; padding: 6px 2px 0; color: var(--fg3); font-size: 12px; }
@@ -362,32 +364,30 @@ function gameScores(L, g) {
   const row = (s, won) => `<tr><td class="lr">${s.lr ?? ""}</td>${robber ? "" : `<td class="cr">${s.cr ?? ""}</td>`}
     <td class="who"><b class="un">${esc(T[s.team].manager)}</b><span>${esc(T[s.team].team)}</span></td>
     <td class="pts num ${won ? "won" : "lost"}">${f2(s.pts)}</td><td class="top">${esc(s.star)} ${f1(s.star_pts)}</td></tr>`;
-  return `<div class="finals">${g[0].gotw ? `<div class="gotw-bar">★ Game of the week ★</div>` : ""}<div class="scroll"><table>
+  return `<div class="finals">${g[0].gotw ? `<div class="gotw-bar">★ Game of the week ★</div>` : g[0].spot ? `<div class="spot-bar">Conference spotlight</div>` : ""}<div class="scroll"><table>
     <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">Score</th><th class="top">Top scorer</th></tr></thead>
     <tbody>${row(g[0], win === 0)}${row(g[1], win === 1)}</tbody>
-    <caption>${g[0].lr == null ? "No standings yet in week 1." : robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."}</caption>
+    <caption>${g[0].lr == null ? "No standings yet in week 1." : g[0].pre ? "Preseason <b>league rank</b> and <i>conference rank</i>, from last season's points." : robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."}</caption>
   </table></div></div>`;
 }
 
 // Pair each paragraph with the game of the first manager it names; a paragraph naming no one stays with the one before it.
 // One that reaches back to a game already covered (a league-wide note) closes the section instead.
-// Games follow the story's order, and any game the story skips goes last with just its scores.
+// Games keep the server's importance order (game of the week or spotlight first); a game the story skips shows just its scores.
 function recapGames(L) {
   const gameOf = {};
   L.games.forEach((g, i) => g.forEach(s => gameOf[T[s.team].manager] = i));
-  const order = [], prose = {};
+  const prose = {};
   let cur = null;
   for (const p of L.paragraphs) {
     const hit = [...esc(p).matchAll(NAME_RE)].map(m => gameOf[m[1]]).find(i => i !== undefined);
     const key = hit !== undefined && hit !== cur && hit in prose ? "outro"
       : hit !== undefined ? (cur = hit) : (cur ?? "intro");
-    if (!(key in prose)) { prose[key] = []; if (typeof key === "number") order.push(key); }
-    prose[key].push(p);
+    (prose[key] ||= []).push(p);
   }
-  L.games.forEach((g, i) => { if (!order.includes(i)) order.push(i); });
   const paras = list => (list || []).map(p => `<p>${boldNames(esc(p))}</p>`).join("");
   return (prose.intro ? `<div class="prose">${paras(prose.intro)}</div>` : "")
-    + order.map(i => `<section class="game">${gameScores(L, L.games[i])}${prose[i] ? `<div class="prose">${paras(prose[i])}</div>` : ""}</section>`).join("")
+    + L.games.map((g, i) => `<section class="game">${gameScores(L, g)}${prose[i] ? `<div class="prose">${paras(prose[i])}</div>` : ""}</section>`).join("")
     + (prose.outro ? `<div class="prose outro">${paras(prose.outro)}</div>` : "");
 }
 
@@ -399,7 +399,7 @@ function matchupTable(games, kind) {
     <td class="pts num">${esc(kind === "conference" ? s.crec : s.lrec)}</td></tr>`;
   return `<div class="finals"><div class="scroll"><table>
     <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">${kind === "conference" ? "Conf record" : "Record"}</th></tr></thead>
-    ${games.map(g => `<tbody>${g[0].gotw ? `<tr class="gotw-row"><td colspan="${cols}">★ Game of the week ★</td></tr>` : ""}${row(g[0])}${row(g[1])}</tbody>`).join("")}
+    ${games.map(g => `<tbody>${g[0].gotw ? `<tr class="gotw-row"><td colspan="${cols}">★ Game of the week ★</td></tr>` : g[0].spot ? `<tr class="spot-row"><td colspan="${cols}">Conference spotlight</td></tr>` : ""}${row(g[0])}${row(g[1])}</tbody>`).join("")}
   </table></div></div>`;
 }
 
@@ -413,7 +413,9 @@ function renderPreview() {
         ? "Cross-conference games that count in the combined league table. These aren't on Sleeper: your score this week counts in both your conference game and this one."
         : `Each team plays one extra game a week against the other conference from week ${P.league_week} to 14. These are week ${P.league_week}'s games, ranked by today's standings.`)}
       ${matchupTable(P.league, "league")}</article>` : "";
-  const confs = Object.entries(P.conferences).map(([name, games]) => `<article class="story">${head(shield(name), `${esc(name)} Conference · week ${P.week}`, `${esc(name)} Conference`, "")}${matchupTable(games, "conference")}</article>`).join("");
+  // The conference holding the game of the week goes first; the other opens with its Spotlight.
+  const hasGotw = games => games.some(g => g[0].gotw);
+  const confs = Object.entries(P.conferences).sort(([, x], [, y]) => hasGotw(y) - hasGotw(x)).map(([name, games]) => `<article class="story">${head(shield(name), `${esc(name)} Conference · week ${P.week}`, `${esc(name)} Conference`, "")}${matchupTable(games, "conference")}</article>`).join("");
   const robber = P.robber.length ? `<article class="story">${head("", `Robber League · week ${P.week}`, "Robber League", "Winners steal a player from the team they beat.")}${matchupTable(P.robber, "robber")}</article>` : "";
   // League play leads in the weeks it is played; before it starts, the look ahead goes last.
   const body = P.league_week === P.week ? league + confs + robber : confs + robber + league;
@@ -429,8 +431,10 @@ function renderRecap() {
   if (recapPick !== "all" && !all.some(R => R.week === recapPick)) recapPick = all[0].week;
   const shown = recapPick === "all" ? [...all].reverse() : all.filter(R => R.week === recapPick);
   const title = recapPick === "all" ? `${D.season} season recaps` : `Week ${recapPick} recap`;
+  const crest = { Armadillo: "armadillo", Grizzly: "grizzly", League: "league" };
+  const label = n => n === "League" ? "League play" : n === "Robber" ? "Robber League" : `${n} Conference`;
   const story = (R, L) => `<article class="story">
-    <div class="kicker">${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name] ? `<img class="crest-sm" src="img/art/${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name]}-shield.webp" alt="">` : ""}<div class="txt"><span class="eyebrow">${esc(L.name)}${L.name === "Robber" ? " League" : " Conference"} · week ${R.week}</span><h2>${esc(L.headline)}</h2></div></div>
+    <div class="kicker">${crest[L.name] ? `<img class="crest-sm" src="img/art/${crest[L.name]}-shield.webp" alt="">` : ""}<div class="txt"><span class="eyebrow">${esc(label(L.name))} · week ${R.week}</span><h2>${esc(L.headline)}</h2></div></div>
     ${recapGames(L)}
     ${L.byline ? `<p class="vs">${esc(L.byline)}</p>` : ""}
   </article>`;
