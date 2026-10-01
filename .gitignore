@@ -17,3 +17,6 @@ _site/
 
 # Design source files. The site uses the copies in site/img.
 images/
+
+# Claude working notes; mentions private pages, so kept local.
+CLAUDE.md
