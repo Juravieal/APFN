@@ -237,6 +237,15 @@ tr.cut16 td { border-bottom: 2px dotted var(--fg3); }
 article.story .kicker { flex-direction: row; align-items: center; gap: 14px; }
 article.story .kicker .crest-sm { width: 64px; height: auto; flex: 0 0 auto; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .35)); }
 article.story .kicker .txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* Guillotine League: the chop line */
+.chop tr.chopped td { background: var(--loss-soft); }
+.chop tr.gone td { color: var(--fg3); } .chop tr.gone b.un { color: var(--fg3); }
+.chop tr.cut td { border-top: 3px solid var(--loss); }
+.chop td.who span { display: block; color: var(--fg3); font-size: 12px; }
+.chop td.who { white-space: normal; }
+table.chop caption { caption-side: bottom; text-align: left; padding: 6px 2px 0; color: var(--fg3); font-size: 12px; }
+.finals .chop-bar { background: linear-gradient(180deg, #4a4f57, #2a2d33 55%, #16181c); color: #f0907f; padding: 4px 10px;
+  font: 900 italic 13px/1.2 var(--brand); letter-spacing: .06em; text-transform: uppercase; text-align: center; }
 .recap-bar { justify-content: flex-end; }
 .recap-bar label { font: 600 14px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--fg2); }
 button.pdf { font: 600 15px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 6px 12px; border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 4px; cursor: pointer; }
@@ -294,6 +303,7 @@ a.jump:hover { background: var(--accent-soft); }
     <button role="tab" id="tab-power" data-tab="power">Power rankings</button>
     <button role="tab" id="tab-conferences" data-tab="conferences">Conferences</button>
     <button role="tab" id="tab-robber" data-tab="robber">Robber League</button>
+    <button role="tab" id="tab-guillotine" data-tab="guillotine">Guillotine</button>
     <button role="tab" id="tab-records" data-tab="records">Record book</button>
     <button role="tab" id="tab-commish" data-tab="commish" class="locked">League Admin</button>
     <a class="jump" href="live.html">Live scoreboard</a>
@@ -304,6 +314,7 @@ a.jump:hover { background: var(--accent-soft); }
   <section class="panel" id="power" role="tabpanel" aria-labelledby="tab-power" hidden></section>
   <section class="panel" id="conferences" role="tabpanel" aria-labelledby="tab-conferences" hidden></section>
   <section class="panel" id="robber" role="tabpanel" aria-labelledby="tab-robber" hidden></section>
+  <section class="panel" id="guillotine" role="tabpanel" aria-labelledby="tab-guillotine" hidden></section>
   <section class="panel" id="records" role="tabpanel" aria-labelledby="tab-records" hidden></section>
   <section class="panel" id="commish" role="tabpanel" aria-labelledby="tab-commish" hidden></section>
   <dialog class="pin" id="pin-dialog" aria-labelledby="pin-title">
@@ -323,7 +334,7 @@ a.jump:hover { background: var(--accent-soft); }
 const D = /*__DATA__*/null;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const T = {};
-[...D.teams, ...D.robber.teams].forEach(t => T[t.key] = t);
+[...D.teams, ...D.robber.teams, ...(D.guillotine ? D.guillotine.teams : [])].forEach(t => T[t.key] = t);
 const f1 = n => Number(n).toFixed(1), f2 = n => Number(n).toFixed(2);
 const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toFixed(Math.abs(n) >= 10 ? 1 : 2);
 const last = D.done[D.done.length - 1] || 0;
@@ -417,8 +428,12 @@ function renderPreview() {
   const hasGotw = games => games.some(g => g[0].gotw);
   const confs = Object.entries(P.conferences).sort(([, x], [, y]) => hasGotw(y) - hasGotw(x)).map(([name, games]) => `<article class="story">${head(shield(name), `${esc(name)} Conference · week ${P.week}`, `${esc(name)} Conference`, "")}${matchupTable(games, "conference")}</article>`).join("");
   const robber = P.robber.length ? `<article class="story">${head("", `Robber League · week ${P.week}`, "Robber League", "Winners steal a player from the team they beat.")}${matchupTable(P.robber, "robber")}</article>` : "";
+  const g = G && !G.final && G.block.length ? `<article class="story">${head("", `Guillotine League · week ${P.week}`, "On the block", `${G.alive} teams left. The lowest season total after this week is chopped.`)}
+    <div class="finals"><div class="scroll"><table class="chop"><thead><tr><th class="lr">#</th><th>Manager</th><th class="r">Season</th><th class="r">Above the line</th></tr></thead>
+    <tbody>${G.block.slice(0, 5).map((b, i) => `<tr class="${i === 0 ? "chopped" : ""}"><td class="lr">${G.alive - i}</td>${gWho(b.team)}<td class="r num"><b>${f2(b.total)}</b></td><td class="r num">${i === 0 ? chip("down", "On the block") : "+" + f2(b.cushion)}</td></tr>`).join("")}</tbody>
+    <caption>The bottom five by season points. Full table in the Guillotine tab.</caption></table></div></div></article>` : "";
   // League play leads in the weeks it is played; before it starts, the look ahead goes last.
-  const body = P.league_week === P.week ? league + confs + robber : confs + robber + league;
+  const body = P.league_week === P.week ? league + confs + robber + g : confs + robber + g + league;
   el.innerHTML = `<p class="note">Week ${P.week} matchups, ranked by importance. <b>League rank</b> and <i>conference rank</i> are as things stand going into the week.</p>${body}`;
 }
 
@@ -432,10 +447,10 @@ function renderRecap() {
   const shown = recapPick === "all" ? [...all].reverse() : all.filter(R => R.week === recapPick);
   const title = recapPick === "all" ? `${D.season} season recaps` : `Week ${recapPick} recap`;
   const crest = { Armadillo: "armadillo", Grizzly: "grizzly", League: "league" };
-  const label = n => n === "League" ? "League play" : n === "Robber" ? "Robber League" : `${n} Conference`;
+  const label = n => n === "League" ? "League play" : n === "Robber" ? "Robber League" : n === "Guillotine" ? "Guillotine League" : `${n} Conference`;
   const story = (R, L) => `<article class="story">
     <div class="kicker">${crest[L.name] ? `<img class="crest-sm" src="img/art/${crest[L.name]}-shield.webp" alt="">` : ""}<div class="txt"><span class="eyebrow">${esc(label(L.name))} · week ${R.week}</span><h2>${esc(L.headline)}</h2></div></div>
-    ${recapGames(L)}
+    ${L.guillotine ? chopTable(L.guillotine) + (L.paragraphs.length ? `<div class="prose">${L.paragraphs.map(p => `<p>${boldNames(esc(p))}</p>`).join("")}</div>` : "") : recapGames(L)}
     ${L.byline ? `<p class="vs">${esc(L.byline)}</p>` : ""}
   </article>`;
   el.innerHTML = `<div class="recap-bar pick">
@@ -574,6 +589,59 @@ function renderRobber() {
     </div>`;
 }
 
+// ---- Guillotine League: lowest season points total is chopped each week; no head-to-head ----
+const G = D.guillotine;
+const gWho = k => `<td class="who"><b class="un">${esc(T[k].manager)}</b><span>${esc(T[k].team)}</span></td>`;
+const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
+
+// One finished week, in the league's own format: every team by season points with FAAB at the chop,
+// then the chopped roster going back to free agency.
+function chopTable(w) {
+  const row = (r, i) => `<tr class="${r.chopped ? "chopped cut" : r.out ? "gone" : ""}"><td class="lr">${i + 1}</td>${gWho(r.team)}
+    <td class="pts num ${r.out ? "lost" : "won"}">${f2(r.total)}</td>
+    <td class="r num">$${r.faab.toLocaleString()}${r.penalty ? " " + chip("down", `−$${G.penalty} penalty`) : ""}</td>
+    <td class="r">${r.chopped ? chip("down", "Chopped") : r.out ? `<span class="vs">Out wk ${r.out}</span>` : ""}</td></tr>`;
+  return `<div class="finals"><div class="chop-bar">✂ ${esc(T[w.chopped].manager)} chopped · ${w.teams - 1} left</div><div class="scroll"><table class="chop">
+    <thead><tr><th class="lr">Pos</th><th>Player</th><th class="r">Points</th><th class="r">FAAB remaining</th><th></th></tr></thead>
+    <tbody>${w.table.map(row).join("")}</tbody>
+    <caption>Season points after week ${w.week}. FAAB as it stood at the chop, before that week's waivers. ${esc(T[w.chopped].manager)} missed by ${f2(w.cushion)}; ${esc(T[w.penalty].manager)} had the week's lowest score among teams that carry on and pays $${G.penalty}.</caption>
+  </table></div></div>
+  ${w.returned.length ? `<div class="block"><h3>Players returned to free agency this week</h3><div class="list"><ul class="plain">${w.returned.map(p => `<li><div><b>${esc(p.name)}</b> <span class="vs">${esc(p.pos)} · ${esc(p.nfl)}</span></div></li>`).join("")}</ul></div></div>` : ""}`;
+}
+
+function renderGuillotine() {
+  const el = document.getElementById("guillotine");
+  if (!G) { el.innerHTML = ""; return; }
+  const lastW = G.weeks[G.weeks.length - 1], low = G.block[0], next = G.block[1];
+  const champs = G.champions.filter(c => c.champion);
+  const repeat = champs.length > 1 && champs.every(c => c.champion === champs[0].champion) ? champs[0].champion : null;
+  const block = `<div class="scroll"><table class="chop">
+    <thead><tr><th class="lr">#</th><th>Manager</th><th class="r">Season</th><th class="r">Last week</th><th class="r">Above the line</th><th class="r">FAAB</th></tr></thead>
+    <tbody>${[...G.block].reverse().map((b, i, a) => `<tr class="${i === a.length - 1 ? "chopped cut" : ""}"><td class="lr">${i + 1}</td>${gWho(b.team)}
+      <td class="r num"><b>${f2(b.total)}</b></td><td class="r num">${f2(b.last)}</td>
+      <td class="r num">${i === a.length - 1 ? chip("down", "On the block") : "+" + f2(b.cushion)}</td>
+      <td class="r num">$${b.faab}</td></tr>`).join("")}</tbody>
+    <caption>Going into week ${D.week_now}. "Above the line" is the cushion over the bottom team. FAAB is what Sleeper shows now.</caption></table></div>`;
+  const graveyard = `<div class="scroll"><table><thead><tr><th>Week</th><th>Chopped</th><th class="r">Season points</th><th class="r">Missed by</th><th>$${G.penalty} penalty</th></tr></thead>
+    <tbody>${[...G.weeks].reverse().map(w => { const r = w.rows.find(x => x.chopped); return `<tr><td class="rank">${w.week}</td>${gWho(w.chopped)}<td class="r num">${f2(r.total)}</td><td class="r num">${f2(w.cushion)}</td><td>${esc(T[w.penalty].manager)}</td></tr>`; }).join("")}</tbody></table></div>`;
+  const bids = G.bids.length ? `<div class="list"><ul class="plain">${G.bids.map(b => `<li><div><b>${esc(b.player)}</b> <span class="vs">to ${esc(T[b.team].manager)} · week ${b.week}</span></div><div class="num"><b>$${b.bid}</b></div></li>`).join("")}</ul></div>` : `<p class="note">No waiver bids yet.</p>`;
+  const standing = G.final ? `<span class="v">Season over</span><span class="s">${esc(T[G.final.champion].manager)} won the final</span>`
+    : `<span class="v">${G.alive} of ${G.start}</span><span class="s">${G.alive > 2 ? `${G.alive - 2} more chops, then the final` : "The final is next"}</span>`;
+  el.innerHTML = `
+    <p class="note"><b>House rules.</b> Head-to-head results do not count; season points are everything. After each week the team with the lowest season points total is chopped and its roster goes to free agency ahead of waivers. The week's lowest score among teams that carry on costs $${G.penalty} of a $${G.budget} FAAB budget. One team goes each week until two are left, and they meet head to head in week 17 for the title.</p>
+    <div class="tiles">
+      <div class="tile"><span class="k">Still standing</span>${standing}</div>
+      ${low && !G.final ? `<div class="tile"><span class="k">On the block</span><span class="v">${esc(T[low.team].manager)}</span><span class="s">${f2(low.total)} points${next ? `, ${f2(next.cushion)} behind ${esc(T[next.team].manager)}` : ""}</span></div>` : ""}
+      ${lastW ? `<div class="tile"><span class="k">Last chopped</span><span class="v">${esc(T[lastW.chopped].manager)}</span><span class="s">Week ${lastW.week}, missed by ${f2(lastW.cushion)}</span></div>` : ""}
+      ${repeat ? `<div class="tile"><span class="k">Two-time champion</span><span class="v">${esc(repeat)}</span><span class="s">Has won all ${champs.length} seasons so far</span></div>` : ""}
+    </div>
+    ${G.final ? "" : `<div class="block"><h2>The chopping block</h2><p class="note">Every team still alive, by season points. The bottom team goes next unless it outscores someone above it this week.</p>${block}</div>`}
+    ${lastW ? `<div class="block"><h2>Week ${lastW.week}</h2>${chopTable(lastW)}</div>` : ""}
+    <div class="block"><h2>The graveyard</h2>${graveyard}</div>
+    <div class="block"><h2>Waiver frenzy</h2><p class="note">The biggest FAAB bids this season. Chopped rosters go to free agency, so this is where the dead teams' players end up.</p>${bids}</div>
+    <div class="block"><h2>Champions</h2><div class="list"><ul class="plain">${G.champions.map(c => `<li><div><b>${esc(c.champion || "—")}</b> <span class="vs">${esc(c.name)} · ${c.teams} teams</span></div><div class="num">${c.season}</div></li>`).join("")}</ul></div></div>`;
+}
+
 function renderRecords() {
   const R = D.records, N = id => esc(R.names[id] || "Vacant team");
   const when = g => `<span class="vs">${g.season} wk ${g.week} · ${esc(g.conf)}${g.playoff ? " · playoffs" : ""}</span>`;
@@ -588,6 +656,7 @@ function renderRecords() {
       <div class="scroll"><table><thead><tr><th>Season</th><th>League champion</th>${confs.map(c => `<th>${esc(c)} champion</th><th>Runner-up</th>`).join("")}</tr></thead>
       <tbody>${years.map(y => `<tr><td class="rank">${y}</td><td>${R.league_champions[y] ? `<span class="chip loot">Champion</span> <b>${esc(R.league_champions[y])}</b>` : ""}</td>${confs.map(c => { const x = R.champions.find(k => k.season === y && k.conf === c); return x ? `<td><b>${N(x.champion)}</b></td><td>${N(x.runner_up)}</td>` : "<td></td><td></td>"; }).join("")}</tr>`).join("")}</tbody></table></div>
       <p class="note">League champions are from the league's Hall of Champions. Conference champions and runners-up are the finals of each conference's Sleeper bracket.</p></div>
+    ${G && G.champions.length ? `<div class="block"><h2>Guillotine League champions</h2><div class="list"><ul class="plain">${G.champions.map(c => `<li><div><span class="chip loot">Champion</span> <b>${esc(c.champion || "—")}</b> <span class="vs">${esc(c.name)} · ${c.teams} teams</span></div><div class="num">${c.season}</div></li>`).join("")}</ul></div></div>` : ""}
     <div class="block"><h2>All-time managers</h2>
       <p class="note">Regular-season records. Greyed names are not in the league this season. Managers who changed Sleeper accounts are combined under their current name.</p>
       <div class="scroll"><table><thead><tr><th>Manager</th><th class="r">Seasons</th><th>Record</th><th class="r">Win %</th><th class="r">Pts / game</th><th class="r">Playoffs</th><th class="r">Finals</th><th>League titles</th><th>Conference titles</th></tr></thead>
@@ -638,6 +707,12 @@ function renderCommish() {
     <div class="block"><h2>Robber League waiver order</h2><p class="note">House rule: the week's losers move ahead of its winners, each group keeping its order.</p>${waiverRule}</div>
     <div class="block"><h2>Week ${C.week} lineup problems</h2><p class="note">Starters on a bye, ruled out or doubtful, and empty starting slots, across all three leagues.</p>${lineups}</div>
     <div class="block"><h2>Robber League bench check</h2>${bench}</div>
+    ${G ? `<div class="block"><h2>Guillotine League</h2>
+      <p class="note">Chops come from the scores (lowest season total); "Done" means that roster has been dropped in Sleeper. Penalties count as applied when a team's FAAB spent is at least its won bids plus the penalties.</p>
+      <div class="scroll"><table><thead><tr><th>Week</th><th>Chop</th><th>Sleeper</th><th>$${G.penalty} penalty</th><th>FAAB check</th></tr></thead>
+      <tbody>${[...G.weeks].reverse().map(w => { const pen = G.penalties.find(x => x.team === w.penalty); return `<tr><td>${w.week}</td><td><b>${esc(T[w.chopped].manager)}</b></td>
+        <td>${w.sleeper === "done" ? chip("good", "Done") : chip("bad", "Drop roster")}${w.sleeper_chopped.length && !w.sleeper_chopped.includes(w.chopped) ? " " + chip("warn", "Sleeper dropped " + esc(w.sleeper_chopped.map(k => T[k].manager).join(", "))) : ""}</td>
+        <td>${esc(T[w.penalty].manager)}</td><td>${pen && pen.over ? chip("warn", `Sleeper took $${pen.applied}`) : pen && pen.ok ? chip("good", "Applied") : chip("bad", "Not applied")}</td></tr>`; }).join("")}</tbody></table></div></div>` : ""}
     <div class="block"><h2>Recent moves</h2>${moves}</div>
     <div class="block"><h2>Recap archive</h2><p class="note">Save any week's recap, or the whole season, as a PDF for the league records. Choose "Save as PDF" in the print dialog.</p>
       <div class="pick"><label for="archive-week" class="sr-only">Recap to save</label>
@@ -709,7 +784,7 @@ function renderHero() {
 }
 
 function show(tab) {
-  if (!["recap", "preview", "power", "conferences", "robber", "records", "commish"].includes(tab)) tab = "recap";
+  if (!["recap", "preview", "power", "conferences", "robber", "guillotine", "records", "commish"].includes(tab)) tab = "recap";
   if (tab === "commish" && !commishOpen) { askPin(); return; }
   document.querySelectorAll("section.panel").forEach(p => p.hidden = p.id !== tab);
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
@@ -722,7 +797,7 @@ document.getElementById("tabs").addEventListener("click", e => {
 
 renderHero();
 document.getElementById("foot").textContent = "Scores and rosters come from Sleeper's public API. Rankings, luck and robbery figures are calculated here and are not official league standings.";
-renderRecap(); renderPreview(); renderPower(); renderConferences(); renderRobber(); renderRecords();
+renderRecap(); renderPreview(); renderPower(); renderConferences(); renderRobber(); renderGuillotine(); renderRecords();
 if (commishOpen) { renderCommish(); document.getElementById("tab-commish").classList.remove("locked"); }
 show(location.hash.slice(1));
 </script>

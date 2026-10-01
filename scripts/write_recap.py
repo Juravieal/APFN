@@ -48,7 +48,7 @@ SCHEMA = {
 
 def facts(week):
     data = B.compute()
-    teams = {t["key"]: t for t in data["teams"] + data["robber"]["teams"]}
+    teams = {t["key"]: t for t in data["teams"] + data["robber"]["teams"] + data["guillotine"]["teams"]}
     who = lambda key: teams[key]["manager"]
     out = {"week": week, "leagues": {}}
     for lid, name in LEAGUES.items():
@@ -81,6 +81,8 @@ def facts(week):
     pair = lambda names: frozenset(names)
     ordered = {}
     for L in page["leagues"]:
+        if L["name"] == "Guillotine":  # a standings table, no write-up
+            continue
         if L["name"] == "League":
             ordered["League"] = {"games": [{
                 "winner": who(max(g, key=lambda s: s["pts"])["team"]), "loser": who(min(g, key=lambda s: s["pts"])["team"]),

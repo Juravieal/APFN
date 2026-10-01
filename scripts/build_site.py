@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW, SITE = ROOT / "data" / "raw", ROOT / "site"
 CONFERENCES = {"1388319888270970880": "Armadillo", "1388320595925557248": "Grizzly"}
 ROBBER = "1389735668468453376"
+GUILLOTINE = "1389743156127334400"
+GUILLOTINE_PENALTY = 50  # FAAB, for the week's lowest score among teams that carry on
 FLEX = {"FLEX": {"RB", "WR", "TE"}, "SUPER_FLEX": {"QB", "RB", "WR", "TE"}, "REC_FLEX": {"WR", "TE"}}
 STEAL_FOLLOWUP_MS = 15 * 60 * 1000
 
@@ -391,6 +393,124 @@ def robber_section(lg):
     return {"steals": steals, "owed": owed, "bench": bench, "summary": summary}
 
 
+def guillotine_section():
+    """APFN Guillotine League, by the league's rules doc: head-to-head results do not count. After
+    each week the surviving team with the lowest season points total is chopped and its roster
+    dropped to free agency, and the lowest score of the week among teams that carry on costs
+    $50 FAAB. One team goes per week until two remain; they meet head to head in week 17.
+    Chops are worked out from scores and checked against the league's own roster drops."""
+    lg = load_league(GUILLOTINE)
+    d, teams = lg["dir"], lg["teams"]
+    key = lambda rid: teams[rid]["key"]
+    budget = lg["league"]["settings"].get("waiver_budget", 1000)
+
+    def star(m):
+        pts = m.get("players_points") or {}
+        best = max(m["starters"], key=lambda p: pts.get(p, 0)) if m.get("starters") else None
+        return (pname(best), pts.get(best, 0)) if best else ("", 0)
+
+    # The league's own chops: a commissioner move that drops a whole roster.
+    dropped, released = {}, {}
+    for w in range(1, WEEK_NOW + 1):
+        for t in load(f"{d}/transactions_{w:02d}.json"):
+            drops = t.get("drops") or {}
+            if t["type"] == "commissioner" and len(drops) >= 5 and len(set(drops.values())) == 1:
+                dropped[next(iter(drops.values()))] = w
+                released[next(iter(drops.values()))] = list(drops)
+
+    alive, total, weeks, final = set(teams), defaultdict(float), [], None
+    for w in DONE:
+        ms = lg["matchups"][w]
+        if len(alive) <= 2:  # the final: head to head on the week's score
+            a, b = sorted(alive, key=lambda r: -ms[r]["points"])
+            final = {"week": w, "champion": key(a), "runner_up": key(b),
+                     "scores": [ms[a]["points"], ms[b]["points"]]}
+            break
+        for r in alive:
+            total[r] += ms[r]["points"]
+        by_total = sorted(alive, key=lambda r: total[r])
+        chopped, rest = by_total[0], by_total[1:]
+        penalty = min(rest, key=lambda r: ms[r]["points"])
+        rows = [{"team": key(r), "pts": ms[r]["points"], "total": round(total[r], 2),
+                 "star": star(ms[r])[0], "star_pts": star(ms[r])[1],
+                 "chopped": r == chopped, "penalty": r == penalty} for r in sorted(alive, key=lambda r: -total[r])]
+        weeks.append({"week": w, "teams": len(alive), "rows": rows, "chopped": key(chopped), "penalty": key(penalty),
+                      "cushion": round(total[rest[0]] - total[chopped], 2),
+                      "sleeper": "done" if dropped.get(chopped) else "pending",
+                      "sleeper_chopped": [key(r) for r, cw in dropped.items() if cw == w and r in teams]})
+        alive = set(rest)
+
+    rosters = {r["roster_id"]: r for r in lg["rosters"]}
+    on_block = sorted(alive, key=lambda r: total[r])
+    block = [{"team": key(r), "total": round(total[r], 2), "last": lg["matchups"][DONE[-1]][r]["points"] if DONE else 0,
+              "cushion": round(total[r] - total[on_block[0]], 2),
+              "faab": budget - (rosters[r]["settings"].get("waiver_budget_used") or 0),
+              "penalties": sum(GUILLOTINE_PENALTY for x in weeks if x["penalty"] == key(r))} for r in on_block]
+
+    bids = []
+    for w in range(1, WEEK_NOW + 1):
+        for t in load(f"{d}/transactions_{w:02d}.json"):
+            bid = (t.get("settings") or {}).get("waiver_bid", 0)
+            if t["type"] == "waiver" and t["status"] == "complete" and bid > 0:
+                for pid in t.get("adds") or {}:
+                    bids.append({"week": w, "team": key(t["roster_ids"][0]), "player": pname(pid), "bid": bid})
+    # A penalty shows in Sleeper as FAAB spent beyond the bids a team has won.
+    won = defaultdict(int)
+    for b in bids:
+        won[b["team"]] += b["bid"]
+    penalties = []
+    for r in teams:
+        owed = [x["week"] for x in weeks if x["penalty"] == key(r)]
+        if owed:
+            extra = (rosters[r]["settings"].get("waiver_budget_used") or 0) - won[key(r)]
+            penalties.append({"team": key(r), "weeks": owed, "owed": GUILLOTINE_PENALTY * len(owed),
+                              "applied": max(0, extra), "ok": extra >= GUILLOTINE_PENALTY * len(owed),
+                              "over": extra > GUILLOTINE_PENALTY * len(owed)})
+    bids.sort(key=lambda b: -b["bid"])
+
+    # Weekly standings in the league's own format: every team by season points (chopped teams at
+    # the bottom, most recent first) with FAAB as it stood at the chop, before that week's waivers.
+    # FAAB comes from what Sleeper has actually taken, less bids won since and penalties since.
+    used = {key(r): rosters[r]["settings"].get("waiver_budget_used") or 0 for r in teams}
+    applied = {p["team"]: p["ok"] for p in penalties}
+    out_at, total_at = {}, {}
+    for x in weeks:
+        chopped_row = next(r for r in x["rows"] if r["chopped"])
+        out_at[x["chopped"]], total_at[x["chopped"]] = x["week"], chopped_row["total"]
+    for x in weeks:
+        w = x["week"]
+        def faab(k):
+            later_bids = sum(b["bid"] for b in bids if b["team"] == k and b["week"] >= w)
+            later_pen = GUILLOTINE_PENALTY * sum(1 for y in weeks if y["penalty"] == k and y["week"] >= w) if applied.get(k) else 0
+            return budget - max(0, used[k] - later_bids - later_pen)
+        gone = sorted((k for k, cw in out_at.items() if cw < w), key=lambda k: -out_at[k])
+        x["table"] = [{"team": r["team"], "total": r["total"], "faab": faab(r["team"]), "chopped": r["chopped"],
+                       "penalty": r["penalty"]} for r in x["rows"]]
+        x["table"] += [{"team": k, "total": total_at[k], "faab": faab(k), "out": out_at[k]} for k in gone]
+        rid = next(r for r in teams if key(r) == x["chopped"])
+        x["returned"] = [pinfo(pid) for pid in released.get(rid) or rosters[rid].get("players") or []]
+
+    history = json.loads((ROOT / "content" / "league-history.json").read_text(encoding="utf-8"))
+    alias = {old: p["known_as"] for p in history.get("same_person", []) for old in p["earlier_accounts"]}
+    champions = []
+    for x in load("history/guillotine_index.json") if (RAW / "history" / "guillotine_index.json").exists() else []:
+        h = f"history/{x['league_id']}"
+        win = int((load(f"{h}/league.json").get("metadata") or {}).get("latest_league_winner_roster_id") or 0)
+        owner = next((r["owner_id"] for r in load(f"{h}/rosters.json") if r["roster_id"] == win), None)
+        name = alias.get(owner) or next((u["display_name"] for u in load(f"{h}/users.json") if u["user_id"] == owner), None)
+        champions.append({"season": x["season"], "name": x["name"], "teams": load(f"{h}/league.json")["total_rosters"],
+                          "champion": name})
+
+    return {
+        "teams": [{"key": t["key"], "manager": t["manager"], "team": t["team"], "avatar": t["avatar"], "conf": "Guillotine"}
+                  for t in teams.values()],
+        "penalty": GUILLOTINE_PENALTY, "budget": budget, "start": len(teams),
+        "weeks": weeks, "final": final, "alive": len(alive), "block": block,
+        "pending": [x for x in weeks if x["sleeper"] == "pending"], "penalties": penalties,
+        "bids": bids[:12], "champions": sorted(champions, key=lambda c: c["season"]),
+    }
+
+
 def weeks_final():
     """Weeks whose NFL games have all finished (can be ahead of Sleeper's week counter)."""
     games = defaultdict(list)
@@ -579,6 +699,17 @@ def compute():
         "robber": {"teams": rob_teams, "upcoming": upcoming(rob),
                    "playoff_teams": rob["league"]["settings"]["playoff_teams"], **robber_section(rob)},
     }
+    data["guillotine"] = G = guillotine_section()
+    # Each recap week gets a Guillotine section after the Robber League.
+    for R in data["recaps"]:
+        gw = next((x for x in G["weeks"] if x["week"] == R["week"]), None)
+        if gw:
+            path = ROOT / "content" / "recaps" / f"{STATE['season']}-week-{R['week']:02d}.json"
+            prose = json.loads(path.read_text(encoding="utf-8")).get("Guillotine", {}) if path.exists() else {}
+            out_name = next(t["manager"] for t in G["teams"] if t["key"] == gw["chopped"])
+            R["leagues"].append({"name": "Guillotine", "headline": prose.get("headline", f"{out_name} gets the chop"),
+                                 "paragraphs": prose.get("paragraphs", []), "games": [], "robber": False,
+                                 "guillotine": gw})
     data["league"] = league_season(confs)
     data["preview"] = preview(confs, rob)
     data["robber"]["waiver_rule"] = robber_waivers(rob)
