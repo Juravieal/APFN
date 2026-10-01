@@ -118,12 +118,17 @@ article.story .prose b.un, b.un { color: var(--accent); }
 .finals td.pts { text-align: right; font-size: 15px; } .finals td.pts.won { font-weight: 700; } .finals td.pts.lost { color: var(--fg2); }
 .finals td.top { color: var(--fg3); font-size: 12px; white-space: normal; }
 .finals tbody + tbody tr:first-child td { border-top: 8px solid var(--bg); }
-.finals tr.gotw-row td { background: linear-gradient(180deg, #f3dc86, #d4ad3a 55%, #b48c22); color: #111; padding: 4px 10px;
+.finals tr.gotw-row td, .finals .gotw-bar { background: linear-gradient(180deg, #f3dc86, #d4ad3a 55%, #b48c22); color: #111; padding: 4px 10px;
   font: 900 italic 13px/1.2 var(--brand); letter-spacing: .06em; text-transform: uppercase; text-align: center; }
 .finals caption { caption-side: bottom; text-align: left; padding: 6px 2px 0; color: var(--fg3); font-size: 12px; }
 @media (max-width: 560px) { .finals td.top { display: none; } .finals th.top { display: none; } }
 article.story .game { display: flex; flex-direction: column; gap: 10px; }
 article.story .prose.outro { padding-top: 16px; border-top: 1px dashed var(--line); }
+/* Fixed column widths so the score columns line up from one game's table to the next */
+article.story .game .finals table { table-layout: fixed; }
+article.story .game .finals th.lr { width: 64px; } article.story .game .finals th.cr { width: 52px; }
+article.story .game .finals th.r { width: 84px; } article.story .game .finals th.top { width: 34%; }
+@media (max-width: 560px) { article.story .game .finals th.lr { width: 52px; } article.story .game .finals th.cr { width: 40px; } article.story .game .finals th.r { width: 72px; } }
 article.story .game + .game { padding-top: 16px; border-top: 1px dashed var(--line); }
 article.story .scores { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .game { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 12px; }
@@ -319,17 +324,17 @@ const NAME_RE = (() => {
 })();
 const boldNames = html => html.replace(NAME_RE, `<b class="un">$1</b>`);
 
-// One game's final-score rows; the column header and rank note go on the first game only.
-function gameScores(L, g, first) {
-  const robber = L.robber, cols = robber ? 4 : 5;
+// One game's final-score rows, each with its own column header and rank note.
+function gameScores(L, g) {
+  const robber = L.robber;
   const win = g[0].pts >= g[1].pts ? 0 : 1;
   const row = (s, won) => `<tr><td class="lr">${s.lr ?? ""}</td>${robber ? "" : `<td class="cr">${s.cr ?? ""}</td>`}
     <td class="who"><b class="un">${esc(T[s.team].manager)}</b><span>${esc(T[s.team].team)}</span></td>
     <td class="pts num ${won ? "won" : "lost"}">${f2(s.pts)}</td><td class="top">${esc(s.star)} ${f1(s.star_pts)}</td></tr>`;
-  return `<div class="finals"><div class="scroll"><table>
-    ${first ? `<thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">Score</th><th class="top">Top scorer</th></tr></thead>` : ""}
-    <tbody>${g[0].gotw ? `<tr class="gotw-row"><td colspan="${cols}">★ Game of the week ★</td></tr>` : ""}${row(g[0], win === 0)}${row(g[1], win === 1)}</tbody>
-    ${first ? `<caption>${robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."}</caption>` : ""}
+  return `<div class="finals">${g[0].gotw ? `<div class="gotw-bar">★ Game of the week ★</div>` : ""}<div class="scroll"><table>
+    <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">Score</th><th class="top">Top scorer</th></tr></thead>
+    <tbody>${row(g[0], win === 0)}${row(g[1], win === 1)}</tbody>
+    <caption>${robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."}</caption>
   </table></div></div>`;
 }
 
@@ -351,7 +356,7 @@ function recapGames(L) {
   L.games.forEach((g, i) => { if (!order.includes(i)) order.push(i); });
   const paras = list => (list || []).map(p => `<p>${boldNames(esc(p))}</p>`).join("");
   return (prose.intro ? `<div class="prose">${paras(prose.intro)}</div>` : "")
-    + order.map((i, n) => `<section class="game">${gameScores(L, L.games[i], n === 0)}${prose[i] ? `<div class="prose">${paras(prose[i])}</div>` : ""}</section>`).join("")
+    + order.map(i => `<section class="game">${gameScores(L, L.games[i])}${prose[i] ? `<div class="prose">${paras(prose[i])}</div>` : ""}</section>`).join("")
     + (prose.outro ? `<div class="prose outro">${paras(prose.outro)}</div>` : "");
 }
 
