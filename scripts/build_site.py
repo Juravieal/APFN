@@ -183,15 +183,42 @@ def ranks_entering(week, confs, rob):
                             {w: load(f"leagues/{lid}/matchups_{w:02d}.json") for w in range(1, through + 1)})
     teams = tournament.teams_from_matchups([feed(lid, lg) for lid, lg in confs.items()])
     tournament.add_league_games(teams, {w: g for w, g in load_schedule(confs).items() if w <= through})
-    out = {k: {"lr": i + 1} for i, k in enumerate(tournament.standings(teams, through))}
+    wl = lambda t: "{w}-{l}".format(**tournament.record(t, through)) + ("-{t}".format(**tournament.record(t, through)) if tournament.record(t, through)["t"] else "")
+    out = {k: {"lr": i + 1, "lrec": wl(teams[k])} for i, k in enumerate(tournament.standings(teams, through))}
     for lid in confs:
         own = {k: {"points": t["points"], "games": [g for g in t["games"] if g[2] == "conference"]}
                for k, t in teams.items() if k.startswith(f"{lid}:")}
         for i, k in enumerate(tournament.standings(own, through)):
-            out[k]["cr"] = i + 1
+            out[k].update(cr=i + 1, crec=wl(own[k]))
     rteams = tournament.teams_from_matchups([feed(ROBBER, rob)])
     for i, k in enumerate(tournament.standings(rteams, through)):
-        out[k] = {"lr": i + 1}
+        out[k] = {"lr": i + 1, "lrec": wl(rteams[k])}
+    return out
+
+
+def preview(confs, rob):
+    """This week's matchups for every league, with each team's ranks and record going into the
+    week, most important game first. Cross-conference league games are listed separately because
+    they are not on Sleeper; before they start, the first week of them is shown as a look ahead."""
+    week = WEEK_NOW
+    ranks = ranks_entering(week, confs, rob)
+    rank_sorted = lambda pairs: sorted(
+        ([dict(key=k, **ranks.get(k, {})) for k in sorted(p, key=lambda k: ranks.get(k, {}).get("lr", 99))] for p in pairs),
+        key=lambda g: (g[0].get("lr", 99) + g[1].get("lr", 99), g[0].get("lr", 99)))
+    schedule = load_schedule(confs)
+    league_week = next((w for w in sorted(schedule) if w >= week), None)
+    out = {
+        "week": week,
+        "league_week": league_week,
+        "league": rank_sorted(schedule.get(league_week, [])) if league_week else [],
+        "conferences": {CONFERENCES[lid]: rank_sorted(tuple(p) for p in upcoming(lg)) for lid, lg in confs.items()},
+        "robber": rank_sorted(tuple(p) for p in upcoming(rob)),
+    }
+    # Game of the week: the top league game when league games are played this week, otherwise the
+    # top conference game across both conferences.
+    pool = out["league"] if league_week == week else [g for gs in out["conferences"].values() for g in gs]
+    if pool:
+        min(pool, key=lambda g: (g[0]["lr"] + g[1]["lr"], g[0]["lr"]))[0]["gotw"] = True
     return out
 
 
@@ -499,6 +526,7 @@ def compute():
                    "playoff_teams": rob["league"]["settings"]["playoff_teams"], **robber_section(rob)},
     }
     data["league"] = league_season(confs)
+    data["preview"] = preview(confs, rob)
     data["robber"]["waiver_rule"] = robber_waivers(rob)
     data["commish"] = commissioner([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)],
                                    data["robber"])

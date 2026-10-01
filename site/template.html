@@ -248,6 +248,7 @@ a.jump:hover { background: var(--accent-soft); }
 
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" id="tab-recap" data-tab="recap">Recap</button>
+    <button role="tab" id="tab-preview" data-tab="preview">Preview</button>
     <button role="tab" id="tab-power" data-tab="power">Power rankings</button>
     <button role="tab" id="tab-conferences" data-tab="conferences">Conferences</button>
     <button role="tab" id="tab-robber" data-tab="robber">Robber League</button>
@@ -257,6 +258,7 @@ a.jump:hover { background: var(--accent-soft); }
   </nav>
 
   <section class="panel" id="recap" role="tabpanel" aria-labelledby="tab-recap"></section>
+  <section class="panel" id="preview" role="tabpanel" aria-labelledby="tab-preview" hidden></section>
   <section class="panel" id="power" role="tabpanel" aria-labelledby="tab-power" hidden></section>
   <section class="panel" id="conferences" role="tabpanel" aria-labelledby="tab-conferences" hidden></section>
   <section class="panel" id="robber" role="tabpanel" aria-labelledby="tab-robber" hidden></section>
@@ -327,6 +329,35 @@ function finalScores(L) {
     }).join("")}
     <caption>${robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."} Most important games first.</caption>
   </table></div></div>`;
+}
+
+function matchupTable(games, kind) {
+  // kind: "league" (league record), "conference" (conference record), "robber" (one rank)
+  const robber = kind === "robber", cols = robber ? 3 : 4;
+  const row = s => `<tr><td class="lr">${s.lr ?? ""}</td>${robber ? "" : `<td class="cr">${s.cr ?? ""}</td>`}
+    <td class="who"><b>${esc(T[s.key].manager)}</b><span>${esc(T[s.key].team)}${kind === "league" ? ` · ${esc(T[s.key].conf)}` : ""}</span></td>
+    <td class="pts num">${esc(kind === "conference" ? s.crec : s.lrec)}</td></tr>`;
+  return `<div class="finals"><div class="scroll"><table>
+    <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">${kind === "conference" ? "Conf record" : "Record"}</th></tr></thead>
+    ${games.map(g => `<tbody>${g[0].gotw ? `<tr class="gotw-row"><td colspan="${cols}">★ Game of the week ★</td></tr>` : ""}${row(g[0])}${row(g[1])}</tbody>`).join("")}
+  </table></div></div>`;
+}
+
+function renderPreview() {
+  const P = D.preview, el = document.getElementById("preview");
+  const shield = n => ({ Armadillo: "armadillo", Grizzly: "grizzly" }[n]);
+  const head = (img, eyebrow, title, note) => `<div class="kicker">${img ? `<img class="crest-sm" src="img/art/${img}-shield.webp" alt="">` : ""}<div class="txt"><span class="eyebrow">${eyebrow}</span><h2>${title}</h2>${note ? `<p class="note">${note}</p>` : ""}</div></div>`;
+  const league = P.league.length ? `<article class="story">${head("league", "Pro League · week " + P.league_week,
+      P.league_week === P.week ? "League play" : `League play starts week ${P.league_week}`,
+      P.league_week === P.week
+        ? "Cross-conference games that count in the combined league table. These aren't on Sleeper: your score this week counts in both your conference game and this one."
+        : `Each team plays one extra game a week against the other conference from week ${P.league_week} to 14. These are week ${P.league_week}'s games, ranked by today's standings.`)}
+      ${matchupTable(P.league, "league")}</article>` : "";
+  const confs = Object.entries(P.conferences).map(([name, games]) => `<article class="story">${head(shield(name), `${esc(name)} Conference · week ${P.week}`, `${esc(name)} Conference`, "")}${matchupTable(games, "conference")}</article>`).join("");
+  const robber = P.robber.length ? `<article class="story">${head("", `Robber League · week ${P.week}`, "Robber League", "Winners steal a player from the team they beat.")}${matchupTable(P.robber, "robber")}</article>` : "";
+  // League play leads in the weeks it is played; before it starts, the look ahead goes last.
+  const body = P.league_week === P.week ? league + confs + robber : confs + robber + league;
+  el.innerHTML = `<p class="note">Week ${P.week} matchups, ranked by importance. <b>League rank</b> and <i>conference rank</i> are as things stand going into the week.</p>${body}`;
 }
 
 function renderRecap() {
@@ -578,7 +609,7 @@ function renderHero() {
 }
 
 function show(tab) {
-  if (!["recap", "power", "conferences", "robber", "records", "commish"].includes(tab)) tab = "recap";
+  if (!["recap", "preview", "power", "conferences", "robber", "records", "commish"].includes(tab)) tab = "recap";
   if (tab === "commish" && !commishOpen) { askPin(); return; }
   document.querySelectorAll("section.panel").forEach(p => p.hidden = p.id !== tab);
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
@@ -591,7 +622,7 @@ document.getElementById("tabs").addEventListener("click", e => {
 
 renderHero();
 document.getElementById("foot").textContent = "Scores and rosters come from Sleeper's public API. Rankings, luck and robbery figures are calculated here and are not official league standings.";
-renderRecap(); renderPower(); renderConferences(); renderRobber(); renderRecords();
+renderRecap(); renderPreview(); renderPower(); renderConferences(); renderRobber(); renderRecords();
 if (commishOpen) { renderCommish(); document.getElementById("tab-commish").classList.remove("locked"); }
 show(location.hash.slice(1));
 </script>
