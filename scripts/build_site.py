@@ -222,12 +222,9 @@ def preview(confs, rob):
     return out
 
 
-def recap(leagues, confs, rob):
-    """Written recap for the last finished week, if content/recaps has one, plus the game lines
+def recap(leagues, confs, rob, week):
+    """Written recap for a finished week, if content/recaps has one, plus the game lines
     with each team's ranks going into the week, most important game first."""
-    if not DONE:
-        return None
-    week = DONE[-1]
     path = ROOT / "content" / "recaps" / f"{STATE['season']}-week-{week:02d}.json"
     prose = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     ranks = ranks_entering(week, confs, rob)
@@ -242,7 +239,9 @@ def recap(leagues, confs, rob):
         out.append({"name": name, **prose.get(name, {"headline": f"Week {week} results", "paragraphs": []}),
                     "games": games, "robber": name == "Robber"})
     # Game of the week: the most important conference game across both conferences.
-    conf_games = [(g[0]["lr"] + g[1]["lr"], g[0]["lr"], g) for L in out if not L["robber"] for g in L["games"]]
+    # Week 1 has no standings to rank from, so it has no game of the week.
+    conf_games = [(g[0]["lr"] + g[1]["lr"], g[0]["lr"], g) for L in out if not L["robber"] for g in L["games"]
+                  if "lr" in g[0] and "lr" in g[1]]
     if conf_games:
         min(conf_games, key=lambda x: x[:2])[2][0]["gotw"] = True
     return {"week": week, "leagues": out}
@@ -519,7 +518,9 @@ def compute():
         "playoff_teams": next(iter(confs.values()))["league"]["settings"]["playoff_teams"],
         "cross": cross, "conf_ppg": {n: round(sum(t["ppg"] for t in pool if t["conf"] == n) / 10, 2) for n in names},
         "awards": awards(pool, DONE[-1]) if DONE else [],
-        "recap": recap([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)], confs, rob),
+        # Every finished week, newest first, so past recaps stay readable on the site.
+        "recaps": [recap([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)], confs, rob, w)
+                   for w in reversed(DONE)],
         "upcoming": {CONFERENCES[lid]: upcoming(lg) for lid, lg in confs.items()},
         "records": build_records(),
         "robber": {"teams": rob_teams, "upcoming": upcoming(rob),

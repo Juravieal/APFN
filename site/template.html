@@ -235,6 +235,37 @@ tr.cut16 td { border-bottom: 2px dotted var(--fg3); }
 article.story .kicker { flex-direction: row; align-items: center; gap: 14px; }
 article.story .kicker .crest-sm { width: 64px; height: auto; flex: 0 0 auto; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .35)); }
 article.story .kicker .txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.recap-bar { justify-content: flex-end; }
+.recap-bar label { font: 600 14px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--fg2); }
+button.pdf { font: 600 15px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 6px 12px; border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 4px; cursor: pointer; }
+button.pdf:hover { background: var(--accent-soft); }
+button.pdf:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.recap-week { display: flex; flex-direction: column; gap: 20px; }
+.recap-week + .recap-week { padding-top: 12px; border-top: 3px solid var(--accent); }
+h2.week-head { font-size: 22px; color: var(--accent); }
+.print-head { display: none; }
+/* Printing (and "Save as PDF" from the Commissioner tab): just the recap, in light colors, one week per page run */
+@media print {
+  :root:root:root {
+    --bg: #ffffff; --surface: #ffffff; --sunken: #f1f2f4; --line: #cdd2d8;
+    --fg: #16181c; --fg2: #4a4f57; --fg3: #6f757e;
+    --accent: #8a6a12; --accent-soft: #f1e6c4;
+    color-scheme: light }
+  @page { margin: 14mm 12mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background: #fff; font-size: 11pt; }
+  .hero, nav.tabs, footer, .recap-bar, dialog { display: none !important; }
+  body.print-recap section.panel { display: none !important; }
+  body.print-recap section#recap { display: flex !important; }
+  .wrap { max-width: none; padding: 0; gap: 12px; }
+  .print-head { display: block; margin: 0; padding-bottom: 6px; border-bottom: 2px solid var(--accent);
+    font: 700 13pt var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .scroll { overflow: visible; }
+  .recap-week + .recap-week { break-before: page; border-top: 0; padding-top: 0; }
+  article.story .kicker, h2.week-head { break-after: avoid; }
+  article.story .game, .finals { break-inside: avoid; }
+  article.story .kicker .crest-sm { width: 44px; filter: none; }
+}
 footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
 a.jump:hover { background: var(--accent-soft); }
@@ -334,7 +365,7 @@ function gameScores(L, g) {
   return `<div class="finals">${g[0].gotw ? `<div class="gotw-bar">★ Game of the week ★</div>` : ""}<div class="scroll"><table>
     <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">Score</th><th class="top">Top scorer</th></tr></thead>
     <tbody>${row(g[0], win === 0)}${row(g[1], win === 1)}</tbody>
-    <caption>${robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."}</caption>
+    <caption>${g[0].lr == null ? "No standings yet in week 1." : robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."}</caption>
   </table></div></div>`;
 }
 
@@ -389,14 +420,42 @@ function renderPreview() {
   el.innerHTML = `<p class="note">Week ${P.week} matchups, ranked by importance. <b>League rank</b> and <i>conference rank</i> are as things stand going into the week.</p>${body}`;
 }
 
+// Every finished week stays readable: anyone can pick a week, or the whole season.
+// Saving one as a PDF is in the Commissioner tab (printRecap).
+let recapPick = null;
 function renderRecap() {
-  const R = D.recap, el = document.getElementById("recap");
-  if (!R) { el.innerHTML = `<p class="note">The first recap appears once week 1 is final.</p>`; return; }
-  el.innerHTML = R.leagues.map(L => `<article class="story">
+  const all = D.recaps || [], el = document.getElementById("recap");
+  if (!all.length) { el.innerHTML = `<p class="note">The first recap appears once week 1 is final.</p>`; return; }
+  if (recapPick !== "all" && !all.some(R => R.week === recapPick)) recapPick = all[0].week;
+  const shown = recapPick === "all" ? [...all].reverse() : all.filter(R => R.week === recapPick);
+  const title = recapPick === "all" ? `${D.season} season recaps` : `Week ${recapPick} recap`;
+  const story = (R, L) => `<article class="story">
     <div class="kicker">${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name] ? `<img class="crest-sm" src="img/art/${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name]}-shield.webp" alt="">` : ""}<div class="txt"><span class="eyebrow">${esc(L.name)}${L.name === "Robber" ? " League" : " Conference"} · week ${R.week}</span><h2>${esc(L.headline)}</h2></div></div>
     ${recapGames(L)}
     ${L.byline ? `<p class="vs">${esc(L.byline)}</p>` : ""}
-  </article>`).join("");
+  </article>`;
+  el.innerHTML = `<div class="recap-bar pick">
+      <label for="recap-week">Week</label>
+      <select id="recap-week">${all.map((R, i) => `<option value="${R.week}"${R.week === recapPick ? " selected" : ""}>Week ${R.week}${i === 0 ? " (latest)" : ""}</option>`).join("")}<option value="all"${recapPick === "all" ? " selected" : ""}>Whole season</option></select>
+    </div>
+    <p class="print-head">APFN Pro League · ${esc(title)}</p>
+    ${shown.map(R => `<div class="recap-week">${recapPick === "all" ? `<h2 class="week-head">Week ${R.week}</h2>` : ""}${R.leagues.map(L => story(R, L)).join("")}</div>`).join("")}`;
+  document.getElementById("recap-week").addEventListener("change", e => {
+    recapPick = e.target.value === "all" ? "all" : +e.target.value;
+    renderRecap();
+  });
+}
+
+// Print one week's recap (or the whole season) from any tab. The browser's print dialog offers
+// "Save as PDF", and the page title becomes the file name.
+function printRecap(pick) {
+  recapPick = pick;
+  renderRecap();
+  const was = document.title;
+  document.title = `APFN Pro League ${pick === "all" ? `${D.season} season recaps` : `${D.season} week ${pick} recap`}`;
+  document.body.classList.add("print-recap");
+  addEventListener("afterprint", () => { document.title = was; document.body.classList.remove("print-recap"); }, { once: true });
+  print();
 }
 
 function renderPower() {
@@ -575,7 +634,15 @@ function renderCommish() {
     <div class="block"><h2>Robber League waiver order</h2><p class="note">House rule: the week's losers move ahead of its winners, each group keeping its order.</p>${waiverRule}</div>
     <div class="block"><h2>Week ${C.week} lineup problems</h2><p class="note">Starters on a bye, ruled out or doubtful, and empty starting slots, across all three leagues.</p>${lineups}</div>
     <div class="block"><h2>Robber League bench check</h2>${bench}</div>
-    <div class="block"><h2>Recent moves</h2>${moves}</div>`;
+    <div class="block"><h2>Recent moves</h2>${moves}</div>
+    <div class="block"><h2>Recap archive</h2><p class="note">Save any week's recap, or the whole season, as a PDF for the league records. Choose "Save as PDF" in the print dialog.</p>
+      <div class="pick"><label for="archive-week" class="sr-only">Recap to save</label>
+        <select id="archive-week">${(D.recaps || []).map((R, i) => `<option value="${R.week}">Week ${R.week}${i === 0 ? " (latest)" : ""}</option>`).join("")}<option value="all">Whole season</option></select>
+        <button type="button" class="pdf" id="archive-pdf">Save as PDF</button></div></div>`;
+  document.getElementById("archive-pdf").addEventListener("click", () => {
+    const v = document.getElementById("archive-week").value;
+    printRecap(v === "all" ? "all" : +v);
+  });
 }
 
 const LOCK_KEY = "apfn-commish";
