@@ -122,6 +122,9 @@ article.story .prose b.un, b.un { color: var(--accent); }
   font: 900 italic 13px/1.2 var(--brand); letter-spacing: .06em; text-transform: uppercase; text-align: center; }
 .finals caption { caption-side: bottom; text-align: left; padding: 6px 2px 0; color: var(--fg3); font-size: 12px; }
 @media (max-width: 560px) { .finals td.top { display: none; } .finals th.top { display: none; } }
+article.story .game { display: flex; flex-direction: column; gap: 10px; }
+article.story .prose.outro { padding-top: 16px; border-top: 1px dashed var(--line); }
+article.story .game + .game { padding-top: 16px; border-top: 1px dashed var(--line); }
 article.story .scores { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .game { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 12px; }
 .game + .game { border-top: 1px solid var(--line); }
@@ -316,20 +319,40 @@ const NAME_RE = (() => {
 })();
 const boldNames = html => html.replace(NAME_RE, `<b class="un">$1</b>`);
 
-function finalScores(L) {
-  const robber = L.robber;
+// One game's final-score rows; the column header and rank note go on the first game only.
+function gameScores(L, g, first) {
+  const robber = L.robber, cols = robber ? 4 : 5;
+  const win = g[0].pts >= g[1].pts ? 0 : 1;
   const row = (s, won) => `<tr><td class="lr">${s.lr ?? ""}</td>${robber ? "" : `<td class="cr">${s.cr ?? ""}</td>`}
     <td class="who"><b class="un">${esc(T[s.team].manager)}</b><span>${esc(T[s.team].team)}</span></td>
     <td class="pts num ${won ? "won" : "lost"}">${f2(s.pts)}</td><td class="top">${esc(s.star)} ${f1(s.star_pts)}</td></tr>`;
-  const cols = robber ? 4 : 5;
-  return `<div class="finals"><h3>Final scores</h3><div class="scroll"><table>
-    <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">Score</th><th class="top">Top scorer</th></tr></thead>
-    ${L.games.map(g => {
-      const win = g[0].pts >= g[1].pts ? 0 : 1;
-      return `<tbody>${g[0].gotw ? `<tr class="gotw-row"><td colspan="${cols}">★ Game of the week ★</td></tr>` : ""}${row(g[0], win === 0)}${row(g[1], win === 1)}</tbody>`;
-    }).join("")}
-    <caption>${robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."} Most important games first.</caption>
+  return `<div class="finals"><div class="scroll"><table>
+    ${first ? `<thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">Score</th><th class="top">Top scorer</th></tr></thead>` : ""}
+    <tbody>${g[0].gotw ? `<tr class="gotw-row"><td colspan="${cols}">★ Game of the week ★</td></tr>` : ""}${row(g[0], win === 0)}${row(g[1], win === 1)}</tbody>
+    ${first ? `<caption>${robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."}</caption>` : ""}
   </table></div></div>`;
+}
+
+// Pair each paragraph with the game of the first manager it names; a paragraph naming no one stays with the one before it.
+// One that reaches back to a game already covered (a league-wide note) closes the section instead.
+// Games follow the story's order, and any game the story skips goes last with just its scores.
+function recapGames(L) {
+  const gameOf = {};
+  L.games.forEach((g, i) => g.forEach(s => gameOf[T[s.team].manager] = i));
+  const order = [], prose = {};
+  let cur = null;
+  for (const p of L.paragraphs) {
+    const hit = [...esc(p).matchAll(NAME_RE)].map(m => gameOf[m[1]]).find(i => i !== undefined);
+    const key = hit !== undefined && hit !== cur && hit in prose ? "outro"
+      : hit !== undefined ? (cur = hit) : (cur ?? "intro");
+    if (!(key in prose)) { prose[key] = []; if (typeof key === "number") order.push(key); }
+    prose[key].push(p);
+  }
+  L.games.forEach((g, i) => { if (!order.includes(i)) order.push(i); });
+  const paras = list => (list || []).map(p => `<p>${boldNames(esc(p))}</p>`).join("");
+  return (prose.intro ? `<div class="prose">${paras(prose.intro)}</div>` : "")
+    + order.map((i, n) => `<section class="game">${gameScores(L, L.games[i], n === 0)}${prose[i] ? `<div class="prose">${paras(prose[i])}</div>` : ""}</section>`).join("")
+    + (prose.outro ? `<div class="prose outro">${paras(prose.outro)}</div>` : "");
 }
 
 function matchupTable(games, kind) {
@@ -366,8 +389,8 @@ function renderRecap() {
   if (!R) { el.innerHTML = `<p class="note">The first recap appears once week 1 is final.</p>`; return; }
   el.innerHTML = R.leagues.map(L => `<article class="story">
     <div class="kicker">${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name] ? `<img class="crest-sm" src="img/art/${{ Armadillo: "armadillo", Grizzly: "grizzly" }[L.name]}-shield.webp" alt="">` : ""}<div class="txt"><span class="eyebrow">${esc(L.name)}${L.name === "Robber" ? " League" : " Conference"} · week ${R.week}</span><h2>${esc(L.headline)}</h2></div></div>
-    ${finalScores(L)}
-    <div class="prose">${L.paragraphs.map(p => `<p>${boldNames(esc(p))}</p>`).join("")}${L.byline ? `<p class="vs">${esc(L.byline)}</p>` : ""}</div>
+    ${recapGames(L)}
+    ${L.byline ? `<p class="vs">${esc(L.byline)}</p>` : ""}
   </article>`).join("");
 }
 
