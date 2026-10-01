@@ -106,6 +106,7 @@ article.story .kicker { grid-column: 1 / -1; display: flex; flex-direction: colu
 article.story h2 { font-size: 30px; }
 article.story .prose { display: flex; flex-direction: column; gap: 10px; max-width: 72ch; font-size: 15px; line-height: 1.6; }
 article.story .prose b { font-weight: 700; color: var(--fg); }
+article.story .prose b.un, b.un { color: var(--accent); }
 /* Final scores, in the commissioner's table layout: league rank bold, conference rank italic */
 .finals { max-width: 760px; }
 .finals table { width: 100%; }
@@ -313,12 +314,12 @@ const NAME_RE = (() => {
     .map(n => esc(n).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   return new RegExp(`(?<![\\w])(${names.join("|")})(?![\\w])`, "g");
 })();
-const boldNames = html => html.replace(NAME_RE, "<b>$1</b>");
+const boldNames = html => html.replace(NAME_RE, `<b class="un">$1</b>`);
 
 function finalScores(L) {
   const robber = L.robber;
   const row = (s, won) => `<tr><td class="lr">${s.lr ?? ""}</td>${robber ? "" : `<td class="cr">${s.cr ?? ""}</td>`}
-    <td class="who"><b>${esc(T[s.team].manager)}</b><span>${esc(T[s.team].team)}</span></td>
+    <td class="who"><b class="un">${esc(T[s.team].manager)}</b><span>${esc(T[s.team].team)}</span></td>
     <td class="pts num ${won ? "won" : "lost"}">${f2(s.pts)}</td><td class="top">${esc(s.star)} ${f1(s.star_pts)}</td></tr>`;
   const cols = robber ? 4 : 5;
   return `<div class="finals"><h3>Final scores</h3><div class="scroll"><table>
@@ -335,7 +336,7 @@ function matchupTable(games, kind) {
   // kind: "league" (league record), "conference" (conference record), "robber" (one rank)
   const robber = kind === "robber", cols = robber ? 3 : 4;
   const row = s => `<tr><td class="lr">${s.lr ?? ""}</td>${robber ? "" : `<td class="cr">${s.cr ?? ""}</td>`}
-    <td class="who"><b>${esc(T[s.key].manager)}</b><span>${esc(T[s.key].team)}${kind === "league" ? ` · ${esc(T[s.key].conf)}` : ""}</span></td>
+    <td class="who"><b class="un">${esc(T[s.key].manager)}</b><span>${esc(T[s.key].team)}${kind === "league" ? ` · ${esc(T[s.key].conf)}` : ""}</span></td>
     <td class="pts num">${esc(kind === "conference" ? s.crec : s.lrec)}</td></tr>`;
   return `<div class="finals"><div class="scroll"><table>
     <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">${kind === "conference" ? "Conf record" : "Record"}</th></tr></thead>
