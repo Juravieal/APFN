@@ -337,6 +337,16 @@ def league_season(confs):
     done = DONE[-1] if DONE else 0
     result = tournament.season(teams, done, schedule)
     result["has_schedule"] = bool(schedule)
+    # Every game this week, ranked by the commissioner's rule (sum of league ranks, ties to the
+    # higher-ranked team). Cross-conference league games come first once they start.
+    rank = {t["key"]: t["rank"] for t in result["table"]}
+    conference = [tuple(p) for lg in confs.values() for p in upcoming(lg) if all(k in rank for k in p)]
+    games = [{"kind": "League game", "a": g["a"], "b": g["b"]} for g in result["league_games"]["games"]]
+    games += [{"kind": "Conference game", "a": a, "b": b} for a, b in tournament.order_games(conference, rank)]
+    for g in games:
+        g["a"], g["b"] = sorted((g["a"], g["b"]), key=rank.get)
+        g.update(a_rank=rank[g["a"]], b_rank=rank[g["b"]])
+    result["week_games"] = {"week": WEEK_NOW, "games": games}
     return result
 
 

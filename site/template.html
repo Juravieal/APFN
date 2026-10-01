@@ -142,7 +142,7 @@ details.season > summary { cursor: pointer; padding: 10px 14px; font-weight: 600
 details.season > div { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px; }
 tr.cut16 td { border-bottom: 2px dotted var(--fg3); }
 .gotw { background: var(--loot-soft); }
-/* ---- World Touchdown War banner: night stadium, league crest, ribbon, nameplates ---- */
+/* ---- APFN Pro League banner: night stadium, league crest, ribbon, nameplates ---- */
 .hero { --crest-green: #43b649; --crest-blue: #0b78bd; --crest-lime: #e4e61c; --gold-1: #f3dfa2; --gold-2: #c99a45; --bronze-1: #7a4a1f; --bronze-2: #d79a55;
   position: relative; overflow: hidden; color: #fff; background: #050b14; isolation: isolate;
   display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 16px 0; }
@@ -195,11 +195,11 @@ a.jump:hover { background: var(--accent-soft); }
 </style>
 </head>
 <body>
-<header class="hero" aria-label="World Touchdown War">
+<header class="hero" aria-label="APFN Pro League">
   <div class="sky"></div><div class="glow l"></div><div class="glow r"></div>
   <div class="lights l" aria-hidden="true"></div><div class="lights r" aria-hidden="true"></div>
   <svg class="crest" viewBox="0 0 300 336" role="img" aria-labelledby="crest-title">
-    <title id="crest-title">World Touchdown War crest</title>
+    <title id="crest-title">APFN Pro League crest</title>
     <defs>
       <linearGradient id="crest-fill" x1="0" x2="1" y1="0" y2="0">
         <stop offset="0.40" stop-color="#43b649"/><stop offset="0.60" stop-color="#0b78bd"/>
@@ -214,9 +214,8 @@ a.jump:hover { background: var(--accent-soft); }
     <path d="M30 44 Q92 48 150 21 Q208 48 270 44 L270 176 Q270 272 150 316 Q30 272 30 176 Z" fill="#fff"/>
     <path d="M36 49 Q95 53 150 27 Q205 53 264 49 L264 176 Q264 268 150 310 Q36 268 36 176 Z" fill="url(#crest-fill)"/>
     <g fill="#fff" font-family="'Archivo Black', 'Arial Black', sans-serif" text-anchor="middle">
-      <text x="150" y="106" font-size="46" textLength="206" lengthAdjust="spacingAndGlyphs">WORLD</text>
-      <text x="150" y="142" font-size="27" textLength="206" lengthAdjust="spacingAndGlyphs">TOUCHDOWN</text>
-      <text x="150" y="204" font-size="66" textLength="206" lengthAdjust="spacingAndGlyphs">WAR</text>
+      <text x="150" y="158" font-size="94" textLength="212" lengthAdjust="spacingAndGlyphs">APFN</text>
+      <text x="150" y="204" font-size="31" textLength="212" lengthAdjust="spacingAndGlyphs">PRO LEAGUE</text>
       <text id="crest-season" x="150" y="262" font-size="46" filter="url(#crest-glow)" stroke="#d9dc10" stroke-width="1">XIII</text>
     </g>
     <defs>
@@ -400,8 +399,8 @@ function leagueBlock() {
   const who = k => `${esc(T[k].team)} <span class="vs">${esc(T[k].manager)}</span>`;
   const table = `<div class="scroll"><table><thead><tr><th>#</th><th>Team</th><th>Conf</th><th>League record</th><th class="r">PF</th><th>Conference record</th></tr></thead>
     <tbody>${L.table.map(t => `<tr class="${t.rank === 8 ? "cut" : t.rank === 16 ? "cut16" : ""}"><td class="rank">${t.rank}</td><td>${team(t.key)}</td><td><span class="chip">${esc(T[t.key].conf)}</span></td><td>${rec(t)}</td><td class="r">${f1(t.pf)}</td><td>${rec(t.conf_record)}</td></tr>`).join("")}</tbody></table></div>`;
-  const G = L.league_games;
-  const games = G.games.length ? `<div class="block"><h3>League games, week ${G.week}</h3><div class="list"><ul class="plain">${G.games.map((g, i) => `<li class="${i === 0 ? "gotw" : ""}"><div>${i === 0 ? '<span class="chip loot">Game of the week</span><br>' : ""}<b>#${g.a_rank} ${esc(T[g.a].team)}</b> v <b>#${g.b_rank} ${esc(T[g.b].team)}</b><br><span class="vs">${esc(T[g.a].manager)} v ${esc(T[g.b].manager)}</span></div><div class="vs num">${g.a_rank + g.b_rank}</div></li>`).join("")}</ul></div></div>` : "";
+  const G = L.week_games;
+  const games = G.games.length ? `<div class="block"><h3>Week ${G.week} games, by importance</h3><p class="note">Ranked by the two teams' combined league rank, lowest first${L.has_schedule ? "; cross-conference league games come first in weeks 5–14" : ""}.</p><div class="list"><ul class="plain">${G.games.map((g, i) => `<li class="${i === 0 ? "gotw" : ""}"><div>${i === 0 ? '<span class="chip loot">Game of the week</span> ' : ""}<span class="chip">${esc(g.kind)}</span><br><b>#${g.a_rank} ${esc(T[g.a].team)}</b> v <b>#${g.b_rank} ${esc(T[g.b].team)}</b><br><span class="vs">${esc(T[g.a].manager)} v ${esc(T[g.b].manager)}</span></div><div class="vs num">${g.a_rank + g.b_rank}</div></li>`).join("")}</ul></div></div>` : "";
   const brackets = L.title.length ? `<div class="block"><div class="banner-ribbon">Playoffs</div>${bracketView(L.title, who)}</div><div class="block"><div class="tape-label">Consolation</div>${bracketView(L.consolation, who)}</div>` : "";
   const champ = L.champion ? `<div class="tile"><span class="k">${D.season} league champion</span><span class="v">${esc(T[L.champion].team)}</span><span class="s">${esc(T[L.champion].manager)}</span></div>` : "";
   return `<div class="block"><h2>League table</h2>${champ}
@@ -411,7 +410,7 @@ function leagueBlock() {
 function pastTournaments() {
   const R = D.records, who = id => esc(R.names[id] || "Vacant team");
   return `<div class="block"><h2>League tournaments</h2><p class="note">The top 8 in the combined table after week 14 play for the league title; 9–16 play the consolation bracket. Brackets are rebuilt from Sleeper scores, and the champion matches the commissioner's list every year. 2024 uses the commissioner's own published seeding.</p>
-    ${R.tournaments.map(t => `<details class="season"><summary>${t.season} · champion ${who(t.champion)}</summary><div>
+    ${R.tournaments.map(t => `<details class="season"><summary>Season ${roman(t.season - 2020)} · ${t.season} · champion ${who(t.champion)}</summary><div>
       <div class="banner-ribbon">Playoffs</div>${bracketView(t.title, who)}<div class="tape-label">Consolation</div>${bracketView(t.consolation, who)}
       <p class="vs">${t.official_seeds ? "Seeded from the commissioner's published table." : "Seeds rebuilt from Sleeper records: wins, then points for, through week 14."}</p></div></details>`).join("")}</div>`;
 }
@@ -572,26 +571,23 @@ document.getElementById("pin-cancel").addEventListener("click", () => document.g
 // ---- banner ------------------------------------------------------------------------------------
 function roman(n) { return [[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]].reduce((s, [v, r]) => { while (n >= v) { s += r; n -= v; } return s; }, ""); }
 function renderHero() {
-  const seasonNo = Number(D.season) - 2013, L = D.league, week = D.week_now;
+  const seasonNo = Number(D.season) - 2020, L = D.league, week = D.week_now;  // 2021 was Season I
   const rank = Object.fromEntries(L.table.map(t => [t.key, t.rank]));
   document.getElementById("crest-season").textContent = roman(seasonNo);
   const plate = (k, tag) => `<div class="plate"><b>${esc(T[k].manager)}</b><span>${esc(tag)}</span></div>`;
   let ribbon = `Season ${roman(seasonNo)}`, kicker = "", headline = "", pair = null, tags = ["", ""];
   const titleRound = L.title.find(r => r.week === week);
   if (L.champion) {
-    ribbon = "Champion"; kicker = `World Touchdown War ${roman(seasonNo)}`;
+    ribbon = "Champion"; kicker = `APFN Pro League · Season ${roman(seasonNo)}`;
     headline = `<div class="plate"><b>${esc(T[L.champion].manager)}</b><span>${esc(T[L.champion].team)}</span></div>`;
   } else if (titleRound) {
     const g = titleRound.games[0];
     ribbon = "Playoffs"; kicker = g.label; pair = [g.hi, g.lo]; tags = [`#${g.hi_seed} seed`, `#${g.lo_seed} seed`];
   } else {
-    // Game of the week: the league game with the lowest rank total, or, before league games
-    // start, the conference game with the lowest rank total.
-    const games = L.league_games.games.length ? L.league_games.games.map(g => [g.a, g.b])
-      : Object.values(D.upcoming).flat();
-    const best = games.slice().sort((x, y) => (rank[x[0]] + rank[x[1]]) - (rank[y[0]] + rank[y[1]]) || Math.min(rank[x[0]], rank[x[1]]) - Math.min(rank[y[0]], rank[y[1]]))[0];
+    // Game of the week: first in the week's ranked list (league games take billing).
+    const best = L.week_games.games[0];
     if (best) {
-      pair = best.slice().sort((a, b) => rank[a] - rank[b]);
+      pair = [best.a, best.b];
       kicker = `Week ${week} · game of the week`; tags = pair.map(k => `League #${rank[k]}`);
     }
   }
