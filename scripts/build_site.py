@@ -67,6 +67,8 @@ def load_league(lid):
         teams[r["roster_id"]] = {
             "key": f"{lid}:{r['roster_id']}", "rid": r["roster_id"], "manager": name,
             "team": (u.get("metadata") or {}).get("team_name") or f"Team {name}",
+            "avatar": (u.get("metadata") or {}).get("avatar")
+                      or (f"https://sleepercdn.com/avatars/thumbs/{u['avatar']}" if u.get("avatar") else None),
             "w": s["wins"], "l": s["losses"], "t": s["ties"],
             "pf": s["fpts"] + s.get("fpts_decimal", 0) / 100,
             "pa": s.get("fpts_against", 0) + s.get("fpts_against_decimal", 0) / 100,

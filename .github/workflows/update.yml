@@ -55,6 +55,7 @@ jobs:
         run: |
           mkdir _site
           cp site/index.html site/live.html _site/
+          cp -r site/img _site/img
 
       - uses: actions/configure-pages@v5
 

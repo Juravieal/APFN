@@ -14,3 +14,6 @@ private/
 __pycache__/
 _site/
 .claude/
+
+# Design source files. The site uses the copies in site/img.
+images/
