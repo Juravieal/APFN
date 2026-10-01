@@ -506,10 +506,10 @@ function leagueBlock() {
 }
 function pastTournaments() {
   const R = D.records, who = id => esc(R.names[id] || "Vacant team");
-  return `<div class="block"><h2>League tournaments</h2><p class="note">The top 8 in the combined table after week 14 play for the league title; 9–16 play the consolation bracket. Brackets are rebuilt from Sleeper scores, and the champion matches the commissioner's list every year. 2024 uses the commissioner's own published seeding.</p>
+  return `<div class="block"><h2>League tournaments</h2><p class="note">The top 8 in the combined table after week 14 play for the league title; 9–16 play the consolation bracket. Brackets are rebuilt from Sleeper scores, and the champion matches the league's own records every year. 2024 uses the league's published seeding.</p>
     ${R.tournaments.map(t => `<details class="season"><summary>Season ${t.season - 2020} · ${t.season} · champion ${who(t.champion)}</summary><div>
       <div class="banner-ribbon">Playoffs</div>${bracketView(t.title, who)}<div class="silver-label">Consolation</div>${bracketView(t.consolation, who)}
-      <p class="vs">${t.official_seeds ? "Seeded from the commissioner's published table." : "Seeds rebuilt from Sleeper records: wins, then points for, through week 14."}</p></div></details>`).join("")}</div>`;
+      <p class="vs">${t.official_seeds ? "Seeded from the league's published table." : "Seeds rebuilt from Sleeper records: wins, then points for, through week 14."}</p></div></details>`).join("")}</div>`;
 }
 
 function renderConferences() {
@@ -583,7 +583,7 @@ function renderRecords() {
     <div class="block"><h2>Champions</h2>
       <div class="scroll"><table><thead><tr><th>Season</th><th>League champion</th>${confs.map(c => `<th>${esc(c)} champion</th><th>Runner-up</th>`).join("")}</tr></thead>
       <tbody>${years.map(y => `<tr><td class="rank">${y}</td><td>${R.league_champions[y] ? `<span class="chip loot">Champion</span> <b>${esc(R.league_champions[y])}</b>` : ""}</td>${confs.map(c => { const x = R.champions.find(k => k.season === y && k.conf === c); return x ? `<td><b>${N(x.champion)}</b></td><td>${N(x.runner_up)}</td>` : "<td></td><td></td>"; }).join("")}</tr>`).join("")}</tbody></table></div>
-      <p class="note">League champions are from the commissioner's Hall of Champions. Conference champions and runners-up are the finals of each conference's Sleeper bracket.</p></div>
+      <p class="note">League champions are from the league's Hall of Champions. Conference champions and runners-up are the finals of each conference's Sleeper bracket.</p></div>
     <div class="block"><h2>All-time managers</h2>
       <p class="note">Regular-season records. Greyed names are not in the league this season. Managers who changed Sleeper accounts are combined under their current name.</p>
       <div class="scroll"><table><thead><tr><th>Manager</th><th class="r">Seasons</th><th>Record</th><th class="r">Win %</th><th class="r">Pts / game</th><th class="r">Playoffs</th><th class="r">Finals</th><th>League titles</th><th>Conference titles</th></tr></thead>
@@ -623,13 +623,13 @@ function renderCommish() {
     : `<p class="note">All steals from week ${C.last_done} have been made.</p>`;
   const W = D.robber.waiver_rule;
   const waiverRule = `<div class="scroll"><table><thead><tr><th>#</th><th>Before week ${W.week} results</th><th>Set to</th><th>Sleeper now</th></tr></thead><tbody>${W.after.map((n, i) => `<tr><td class="rank">${i + 1}</td><td>${esc(W.before[i])}</td><td><b>${esc(n)}</b></td><td class="${W.now[i] === n ? "" : "gone"}">${esc(W.now[i] || "")}</td></tr>`).join("")}</tbody></table></div>
-    <p class="note">${W.matches ? '<span class="chip good">Sleeper matches</span>' : '<span class="chip warn">Sleeper differs</span> If waivers have not run since, set Sleeper to the middle column. Once waiver claims run they move teams again, so a difference after that is expected.'} ${W.source === "commissioner" ? "Week " + W.week + " order is from the commissioner's table." : "Worked out automatically when week " + W.week + "'s games ended."}</p>`;
+    <p class="note">${W.matches ? '<span class="chip good">Sleeper matches</span>' : '<span class="chip warn">Sleeper differs</span> If waivers have not run since, set Sleeper to the middle column. Once waiver claims run they move teams again, so a difference after that is expected.'} ${W.source === "commissioner" ? "Week " + W.week + " order is from the league's own table." : "Worked out automatically when week " + W.week + "'s games ended."}</p>`;
   const waiver = C.waiver.length ? `<div class="scroll"><table><thead><tr><th>Loser</th><th class="r">Waiver</th><th>Winner</th><th class="r">Waiver</th><th></th></tr></thead><tbody>${C.waiver.map(w => `<tr><td>${esc(w.loser)}</td><td class="r">${w.loser_pos ?? ""}</td><td>${esc(w.winner)}</td><td class="r">${w.winner_pos ?? ""}</td><td>${w.ok ? '<span class="chip good">Loser ahead</span>' : '<span class="chip bad">Swap needed</span>'}</td></tr>`).join("")}</tbody></table></div>` : "";
   const lineups = C.lineups.length ? `<div class="scroll"><table><thead><tr><th>League</th><th>Manager</th><th>Problem</th></tr></thead><tbody>${C.lineups.map(x => `<tr><td>${esc(x.league)}</td><td><b>${esc(x.manager)}</b></td><td>${x.issues.map(i => `<div class="issue"><span class="chip ${i.level === "problem" ? "bad" : "warn"}">${i.level === "problem" ? "Fix" : "Watch"}</span>${esc(i.text)}</div>`).join("")}</td></tr>`).join("")}</tbody></table></div>` : `<p class="note">Every starting lineup is full and playing.</p>`;
   const bench = C.bench.length ? `<div class="list"><ul class="plain">${C.bench.map(b => `<li><div><b>${esc(b.name)}</b> <span class="vs">${esc(b.pos)} · ${esc(b.nfl)}</span></div><div class="vs">${short(b.team)}</div></li>`).join("")}</ul></div>` : `<p class="note">Every benched Robber League player is injured or on a bye.</p>`;
-  const moves = C.moves.length ? `<div class="scroll"><table><thead><tr><th>When</th><th>League</th><th>Type</th><th>Move</th></tr></thead><tbody>${C.moves.map(m => `<tr><td>${when(m.at)}</td><td>${esc(m.league)}</td><td>${esc(m.type)}</td><td style="white-space:normal">${esc(m.text)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="note">No moves in the last two weeks.</p>`;
+  const moves = C.moves.length ? `<div class="scroll"><table><thead><tr><th>When</th><th>League</th><th>Type</th><th>Move</th></tr></thead><tbody>${C.moves.map(m => `<tr><td>${when(m.at)}</td><td>${esc(m.league)}</td><td>${esc(m.type === "commissioner" ? "admin" : m.type)}</td><td style="white-space:normal">${esc(m.text)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="note">No moves in the last two weeks.</p>`;
   el.innerHTML = `
-    <p class="note">For the commissioner. Updated with the rest of the site.</p>
+    <p class="note">League admin tools. Updated with the rest of the site.</p>
     <div class="block"><h2>Robber League steals to make</h2>${owed}</div>
     <div class="block"><h2>Robber League waiver order</h2><p class="note">House rule: the week's losers move ahead of its winners, each group keeping its order.</p>${waiverRule}</div>
     <div class="block"><h2>Week ${C.week} lineup problems</h2><p class="note">Starters on a bye, ruled out or doubtful, and empty starting slots, across all three leagues.</p>${lineups}</div>

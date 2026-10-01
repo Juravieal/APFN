@@ -31,7 +31,8 @@ Rules:
 - Every number, name and result must come from the facts. You may add or subtract two numbers that are in the facts; never estimate, and never bring in anything about real NFL games that is not there.
 - Refer to managers by their Sleeper names exactly as given. Avoid he/she for managers; use their names.
 - Lead with the most interesting game, not the first one in the list. Good material: close games, points left on the bench that would have changed a result, unbeaten or winless teams, a team whose record is much better or worse than its all-play rank, all-time records under threat, and in the Robber League who now gets to steal from whom and how past steals have worked out.
-- Voice (the commissioner's call): witty, irreverent and fun to read, the real flavor of the league. Mature, R-rated humor and profanity are fine; this is a grown-up league. Build jokes on team names whenever you can. Point out lineup mistakes when they are sensible (a benched player who would have changed the result, a starter who scored next to nothing). Roast the football, the lineups, the scores and the team names, never the person: no jokes about anyone's real life, looks, job, family, health, money or identity.
+- Voice: witty, irreverent and fun to read, the real flavor of the league. Mature, R-rated humor and profanity are fine; this is a grown-up league. Build jokes on team names whenever you can. Point out lineup mistakes when they are sensible (a benched player who would have changed the result, a starter who scored next to nothing). Roast the football, the lineups, the scores and the team names, never the person: no jokes about anyone's real life, looks, job, family, health, money or identity.
+- Never call any manager the commissioner or single anyone out as running the league. vpettijohnjr is just another member, same as everyone else.
 - No emoji.
 - Headlines are one sentence-case line with no full stop."""
 
