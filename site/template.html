@@ -218,6 +218,13 @@ tr.cut16 td { border-bottom: 2px dotted var(--fg3); }
 .np .who { min-width: 0; flex: 1; text-align: center; container-type: inline-size; }
 .np b { display: block; white-space: nowrap; font: 900 italic min(26px, calc(140cqi / var(--len, 10)))/1.05 var(--brand);
   text-transform: uppercase; color: #fff; text-shadow: 0 0 8px rgba(255, 255, 255, .25); }
+.np .pts { display: block; margin-top: 3px; font: 900 italic clamp(18px, 2vw, 24px)/1 var(--brand); color: #f4f4f5; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.np.ahead .pts { color: var(--gold); }
+.gotw-strip .live { font: 600 11px Saira, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: #9a9ea6; display: flex; align-items: center; gap: 8px; }
+.gotw-strip .live.on { color: #f0907f; }
+.gotw-strip .live.on::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #f0907f; animation: hero-pulse 1.6s ease-in-out infinite; }
+@keyframes hero-pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .gotw-strip .live.on::before { animation: none; } }
 .np span { display: block; margin-top: 4px; font: 700 clamp(10px, 1vw, 12px) Saira, sans-serif; letter-spacing: .28em; text-transform: uppercase; color: var(--gold); }
 @media (max-width: 640px) {
   .hero-top { gap: 0 2px; }
@@ -759,7 +766,7 @@ function renderHero() {
   const rank = Object.fromEntries(L.table.map(t => [t.key, t.rank]));
   const plate = (k, tag) => {
     const t = T[k], pic = t.avatar ? `<img class="av" src="${esc(t.avatar)}" alt="" referrerpolicy="no-referrer">` : "";
-    return `<div class="np"><div class="frame"><div class="panel">${pic}<div class="who"><b style="--len:${Math.max(t.manager.length, 8)}">${esc(t.manager)}</b><span>${esc(tag)}</span></div></div></div></div>`;
+    return `<div class="np" data-key="${esc(k)}"><div class="frame"><div class="panel">${pic}<div class="who"><b style="--len:${Math.max(t.manager.length, 8)}">${esc(t.manager)}</b><span>${esc(tag)}</span><em class="pts" hidden></em></div></div></div></div>`;
   };
   // The league shield already reads "Season 6"; the gold ribbon is only for the playoffs and the champion.
   let ribbon = "", label = "", row = "";
@@ -776,11 +783,46 @@ function renderHero() {
       const g = L.week_games.games[0];  // game of the week: first in the ranked list
       label = `Week ${week}<i>|</i>Game of the week`; [a, b] = [g.a, g.b]; tags = [`League #${rank[a]}`, `League #${rank[b]}`];
     }
-    if (a) row = `<div class="row">${plate(a, tags[0])}<span class="vs" role="img" aria-label="versus">VS</span>${plate(b, tags[1])}</div>`;
+    if (a) {
+      row = `<div class="row">${plate(a, tags[0])}<span class="vs" role="img" aria-label="versus">VS</span>${plate(b, tags[1])}</div><div class="live" id="hero-live" hidden></div>`;
+      heroKeys = [a, b];
+    }
   }
   document.getElementById("hero-ribbon").innerHTML = ribbon ? `<span class="ribbon-gold">${esc(ribbon)}</span>` : "";
   document.getElementById("hero-gotw").innerHTML = row ? `<div class="label">${label}</div>${row}` : "";
   document.getElementById("hero-status").innerHTML = `Season ${seasonNo}<i> / </i>${D.season}<i> / </i>through week ${last}<i> / </i>updated ${esc(D.built)}`;
+}
+
+// Live score for the game of the week, fetched from Sleeper in the browser once a minute while
+// the week's NFL games are on. Each team's score comes from its own league's matchup, so this
+// works for conference games, cross-conference league games and playoff games alike.
+let heroKeys = null, heroTimer = null;
+async function heroLive() {
+  if (!heroKeys) return;
+  const get = url => fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  try {
+    const week = D.week_now;
+    const games = (await get(`https://api.sleeper.com/schedule/nfl/regular/${D.season}`)).filter(g => g.week === week);
+    const st = games.map(g => g.status);
+    if (!st.length || st.every(x => x === "pre_game")) return;  // nothing has kicked off yet
+    const byLeague = {};
+    for (const lid of new Set(heroKeys.map(k => k.split(":")[0]))) byLeague[lid] = await get(`https://api.sleeper.app/v1/league/${lid}/matchups/${week}`);
+    const pts = heroKeys.map(k => { const [lid, rid] = k.split(":"); const m = byLeague[lid].find(x => String(x.roster_id) === rid); return m ? m.points || 0 : 0; });
+    heroKeys.forEach((k, i) => {
+      const np = document.querySelector(`#hero-gotw .np[data-key="${CSS.escape(k)}"]`);
+      if (!np) return;
+      const el = np.querySelector(".pts");
+      el.textContent = f2(pts[i]); el.hidden = false;
+      np.classList.toggle("ahead", pts[i] > pts[1 - i]);
+    });
+    const final = st.every(x => x === "complete"), live = st.some(x => x === "in_game");
+    const line = document.getElementById("hero-live");
+    line.hidden = false;
+    line.classList.toggle("on", live);
+    const time = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    line.textContent = final ? "Final" : live ? `Live · updated ${time}` : `Between games · updated ${time}`;
+    if (final && heroTimer) { clearInterval(heroTimer); heroTimer = null; }
+  } catch (_) { /* Sleeper unreachable: leave the plates as they are and try again next minute */ }
 }
 
 function show(tab) {
@@ -796,6 +838,8 @@ document.getElementById("tabs").addEventListener("click", e => {
 });
 
 renderHero();
+heroLive();
+heroTimer = setInterval(heroLive, 60000);
 document.getElementById("foot").textContent = "Scores and rosters come from Sleeper's public API. Rankings, luck and robbery figures are calculated here and are not official league standings.";
 renderRecap(); renderPreview(); renderPower(); renderConferences(); renderRobber(); renderGuillotine(); renderRecords();
 if (commishOpen) { renderCommish(); document.getElementById("tab-commish").classList.remove("locked"); }
