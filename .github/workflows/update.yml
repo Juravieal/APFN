@@ -38,6 +38,16 @@ jobs:
       - name: Pull data from Sleeper
         run: python scripts/pull_sleeper.py --nfl --players --history
 
+      - name: Check the Anthropic API key
+        # Listing models is free, so this confirms the key works without spending anything.
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::warning::No ANTHROPIC_API_KEY secret is set, so recaps can't be written."
+          else
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://api.anthropic.com/v1/models               -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01")
+            if [ "$code" = "200" ]; then echo "::notice::Anthropic API key works."; else echo "::warning::Anthropic API key was rejected (HTTP $code)."; fi
+          fi
+
       - name: Write the recap (Tuesday 3:15 am Eastern; later runs fill in a missed week)
         run: |
           # Recaps post at 3:15 am Eastern on Tuesday, never earlier. Any later run writes a
