@@ -28,7 +28,19 @@ def load(rel):
 STATE = load("state.json")
 PLAYERS = load("players.json")
 WEEK_NOW = STATE["week"]
-DONE = list(range(1, WEEK_NOW))  # weeks with final scores
+
+
+def _all_games_final():
+    """Weeks whose NFL games have all finished. Can run ahead of Sleeper's week counter, which
+    turns over early Tuesday; the Tuesday 3:15 am Eastern recap run must not depend on that."""
+    games = defaultdict(list)
+    path = RAW / "nfl" / f"schedule_{STATE['season']}.json"
+    for g in json.loads(path.read_text(encoding="utf-8")) if path.exists() else []:
+        games[g["week"]].append(g["status"])
+    return [w for w, st in sorted(games.items()) if w <= WEEK_NOW and st and all(s == "complete" for s in st)]
+
+
+DONE = sorted(set(range(1, WEEK_NOW)) | set(_all_games_final()))  # weeks with final scores
 
 
 def pname(pid):
@@ -527,10 +539,7 @@ def guillotine_section():
 
 def weeks_final():
     """Weeks whose NFL games have all finished (can be ahead of Sleeper's week counter)."""
-    games = defaultdict(list)
-    for g in load(f"nfl/schedule_{STATE['season']}.json"):
-        games[g["week"]].append(g["status"])
-    return [w for w, st in sorted(games.items()) if w <= WEEK_NOW and st and all(s == "complete" for s in st)]
+    return _all_games_final()
 
 
 def robber_waivers(rob):

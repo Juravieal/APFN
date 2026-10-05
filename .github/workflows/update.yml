@@ -2,9 +2,14 @@ name: Update site
 
 on:
   schedule:
-    # Every day at 10:15 UTC (about 6 am US Eastern). Tuesday's run is the one that
-    # picks up the finished week; the others keep rosters, waivers and steals current.
+    # Every day at 10:15 UTC (about 6 am US Eastern) keeps rosters, waivers and steals current.
     - cron: "15 10 * * *"
+    # The weekly recap: Tuesday 3:15 am Eastern, after Sleeper turns the week over at about 3:05.
+    # Cron runs in UTC, so both lines are listed: 07:15 UTC is 3:15 am in daylight time and
+    # 08:15 UTC is 3:15 am in standard time. The recap step below skips the run that lands
+    # before 3:15 Eastern, and the other one is a harmless fallback.
+    - cron: "15 7 * * 2"
+    - cron: "15 8 * * 2"
   workflow_dispatch:
   push:
     branches: [main]
@@ -33,10 +38,20 @@ jobs:
       - name: Pull data from Sleeper
         run: python scripts/pull_sleeper.py --nfl --players --history
 
-      - name: Write the recap (only if an API key is configured)
+      - name: Write the recap (Tuesday 3:15 am Eastern; later runs fill in a missed week)
         run: |
-          if [ -n "$ANTHROPIC_API_KEY" ]; then pip install --quiet anthropic; fi
-          python scripts/write_recap.py
+          # Recaps post at 3:15 am Eastern on Tuesday, never earlier. Any later run writes a
+          # finished week's recap if it is still missing; an existing recap is never replaced.
+          if [ "$(TZ=America/New_York date +%u)" = "2" ] && [ "$(TZ=America/New_York date +%H%M)" -lt "0315" ]; then
+            echo "Before 3:15 am Tuesday Eastern: the recap waits for the next run."
+          else
+            if [ -n "$ANTHROPIC_API_KEY" ]; then
+              pip install --quiet anthropic
+            elif [ "$(TZ=America/New_York date +%u)" = "2" ]; then
+              echo "::warning::No ANTHROPIC_API_KEY secret, so this week's recap can't be written. Add it under Settings > Secrets and variables > Actions."
+            fi
+            python scripts/write_recap.py
+          fi
 
       - name: Build pages
         run: |
