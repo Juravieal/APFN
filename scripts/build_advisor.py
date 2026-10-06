@@ -33,6 +33,10 @@ def load(rel):
 
 STATE = load("state.json")
 SEASON, WEEK = STATE["season"], STATE["week"]
+# Once every game of Sleeper's current week is final, advise on the next week, even before
+# Sleeper turns the week over early Tuesday morning.
+if all(g["status"] == "complete" for g in load(f"nfl/schedule_{SEASON}.json") if g["week"] == WEEK):
+    WEEK += 1
 DONE = list(range(1, WEEK))
 AHEAD = [w for w in range(WEEK, WEEK + 4) if (RAW / f"nfl/proj_{SEASON}_{w:02d}.json").exists()]
 PLAYERS = load("players.json")

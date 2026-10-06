@@ -54,6 +54,8 @@ def pull_leagues(state):
         for w in range(1, week + 1):
             pull(f"{d}/matchups_{w:02d}.json", f"{API}/league/{lid}/matchups/{w}")
             pull(f"{d}/transactions_{w:02d}.json", f"{API}/league/{lid}/transactions/{w}")
+        # Next week's pairings too, so advice can look ahead before Sleeper turns the week over.
+        pull(f"{d}/matchups_{week + 1:02d}.json", f"{API}/league/{lid}/matchups/{week + 1}")
         for dr in get(f"{API}/league/{lid}/drafts"):
             did = dr["draft_id"]
             pull(f"{d}/draft_{did}.json", f"{API}/draft/{did}")
