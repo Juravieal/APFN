@@ -3,8 +3,57 @@
   "weeks": {
     "3": {
       "source": "commissioner",
-      "before": ["queens22", "kbartelt07", "adamgum", "ArmedRodgery21", "vpettijohnjr", "thatguyPegleg", "cartercole", "Juravieal", "Ghaztyz", "Dfiasco0"],
-      "after": ["adamgum", "ArmedRodgery21", "vpettijohnjr", "thatguyPegleg", "cartercole", "queens22", "kbartelt07", "Juravieal", "Ghaztyz", "Dfiasco0"]
+      "before": [
+        "queens22",
+        "kbartelt07",
+        "adamgum",
+        "ArmedRodgery21",
+        "vpettijohnjr",
+        "thatguyPegleg",
+        "cartercole",
+        "Juravieal",
+        "Ghaztyz",
+        "Dfiasco0"
+      ],
+      "after": [
+        "adamgum",
+        "ArmedRodgery21",
+        "vpettijohnjr",
+        "thatguyPegleg",
+        "cartercole",
+        "queens22",
+        "kbartelt07",
+        "Juravieal",
+        "Ghaztyz",
+        "Dfiasco0"
+      ]
+    },
+    "4": {
+      "source": "automatic",
+      "before": [
+        "ArmedRodgery21",
+        "kbartelt07",
+        "Dfiasco0",
+        "adamgum",
+        "queens22",
+        "vpettijohnjr",
+        "Juravieal",
+        "Ghaztyz",
+        "cartercole",
+        "thatguyPegleg"
+      ],
+      "after": [
+        "ArmedRodgery21",
+        "queens22",
+        "vpettijohnjr",
+        "cartercole",
+        "thatguyPegleg",
+        "kbartelt07",
+        "Dfiasco0",
+        "adamgum",
+        "Juravieal",
+        "Ghaztyz"
+      ]
     }
   }
 }
