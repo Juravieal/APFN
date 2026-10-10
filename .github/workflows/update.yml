@@ -1,21 +1,16 @@
-name: Update site
+name: Redirect old address
+
+# The site is built and published by the APFN server (DigitalOcean) at https://allprofantasy.us,
+# which also writes the Tuesday recap and commits league records here. This workflow only keeps
+# the old GitHub Pages address (juravieal.github.io/APFN) redirecting there.
 
 on:
-  schedule:
-    # Every day at 10:15 UTC (about 6 am US Eastern) keeps rosters, waivers and steals current.
-    - cron: "15 10 * * *"
-    # The weekly recap: Tuesday 3:15 am Eastern, after Sleeper turns the week over at about 3:05.
-    # Cron runs in UTC, so both lines are listed: 07:15 UTC is 3:15 am in daylight time and
-    # 08:15 UTC is 3:15 am in standard time. The recap step below skips the run that lands
-    # before 3:15 Eastern, and the other one is a harmless fallback.
-    - cron: "15 7 * * 2"
-    - cron: "15 8 * * 2"
-  workflow_dispatch:
   push:
     branches: [main]
+    paths: [redirect/**, .github/workflows/update.yml]
+  workflow_dispatch:
 
 permissions:
-  contents: write   # to commit a newly written recap
   pages: write
   id-token: write
 
@@ -24,76 +19,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Pull data from Sleeper
-        run: python scripts/pull_sleeper.py --nfl --players --history
-
-      - name: Check the Anthropic API key
-        # Listing models is free, so this confirms the key works without spending anything.
-        run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::warning::No ANTHROPIC_API_KEY secret is set, so recaps can't be written."
-          else
-            code=$(curl -s -o /dev/null -w "%{http_code}" https://api.anthropic.com/v1/models               -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01")
-            if [ "$code" = "200" ]; then echo "::notice::Anthropic API key works."; else echo "::warning::Anthropic API key was rejected (HTTP $code)."; fi
-          fi
-
-      - name: Write the recap (Tuesday 3:15 am Eastern; later runs fill in a missed week)
-        run: |
-          # Recaps post at 3:15 am Eastern on Tuesday, never earlier. Any later run writes a
-          # finished week's recap if it is still missing; an existing recap is never replaced.
-          if [ "$(TZ=America/New_York date +%u)" = "2" ] && [ "$(TZ=America/New_York date +%H%M)" -lt "0315" ]; then
-            echo "Before 3:15 am Tuesday Eastern: the recap waits for the next run."
-          else
-            if [ -n "$ANTHROPIC_API_KEY" ]; then
-              pip install --quiet anthropic
-            elif [ "$(TZ=America/New_York date +%u)" = "2" ]; then
-              echo "::warning::No ANTHROPIC_API_KEY secret, so this week's recap can't be written. Add it under Settings > Secrets and variables > Actions."
-            fi
-            python scripts/write_recap.py
-          fi
-
-      - name: Build pages
-        run: |
-          python scripts/build_site.py
-          python scripts/build_live.py
-          node scripts/check_pages.js
-
-      - name: Commit a new recap
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add content
-          git diff --cached --quiet || (git commit -m "Update recap and league records" && git push)
-
-      - name: Assemble the public site
-        run: |
-          mkdir _site
-          cp site/index.html site/live.html _site/
-          cp -r site/img _site/img
-
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
   deploy:
-    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: redirect
       - id: deployment
         uses: actions/deploy-pages@v4
