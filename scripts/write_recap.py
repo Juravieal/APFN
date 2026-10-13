@@ -135,19 +135,24 @@ def ask_claude(payload, example):
         prompt = ("An earlier recap, to show the voice and length. Do not reuse its content:\n\n"
                   + json.dumps(example, ensure_ascii=False) + "\n\n" + prompt)
     request = dict(
-        model=MODEL, max_tokens=16000, system=SYSTEM, thinking={"type": "adaptive"},
+        # Weeks with league games run to 25 stories, and thinking counts against the cap too, so
+        # leave plenty of room. A cap this large needs streaming to avoid HTTP timeouts.
+        model=MODEL, max_tokens=64000, system=SYSTEM, thinking={"type": "adaptive"},
         output_config={"effort": "high", "format": {"type": "json_schema", "schema": SCHEMA}},
         messages=[{"role": "user", "content": prompt}],
     )
     try:
         # Server-side fallback: if a safety classifier declines, the API reruns on another model.
-        response = client.beta.messages.create(betas=["server-side-fallback-2026-07-01"], fallbacks="default", **request)
+        with client.beta.messages.stream(betas=["server-side-fallback-2026-07-01"], fallbacks="default", **request) as s:
+            response = s.get_final_message()
     except anthropic.BadRequestError as e:
         print("recap: request with fallbacks was rejected, retrying without:", e.message)
-        response = client.messages.create(**request)
+        with client.messages.stream(**request) as s:
+            response = s.get_final_message()
     if response.stop_reason in ("refusal", "max_tokens"):
         raise RuntimeError(f"model stopped early: {response.stop_reason}")
-    return json.loads(next(b.text for b in response.content if b.type == "text"))
+    # After a mid-stream fallback the declined partial stays in front, so the last text block is the answer.
+    return json.loads([b.text for b in response.content if b.type == "text"][-1])
 
 
 def unverified_numbers(recap, payload):
