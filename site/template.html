@@ -404,7 +404,7 @@ const last = D.done[D.done.length - 1] || 0;
 const team = k => `<div class="team"><b>${esc(T[k].team)}</b><span>${esc(T[k].manager)}</span></div>`;
 const short = k => esc(T[k].manager);
 const rec = t => `${t.w}–${t.l}${t.t ? "–" + t.t : ""}`;
-const weekCells = t => t.weeks.map(x => `<span class="wk ${x.res}" title="Week ${x.week}: ${f2(x.pts)} to ${f2(x.opp_pts)} vs ${short(x.opp)}"><em>${x.res}</em>${f1(x.pts)}</span>`).join("");
+const weekCells = t => [...t.weeks].reverse().map(x => `<span class="wk ${x.res}" title="Week ${x.week}: ${f2(x.pts)} to ${f2(x.opp_pts)} vs ${short(x.opp)}"><em>${x.res}</em>${f1(x.pts)}</span>`).join("");
 const luckChip = l => Math.abs(l) < 0.5 ? "" : ` <span class="chip ${l > 0 ? "up" : "down"}">${l > 0 ? "Lucky" : "Unlucky"}</span>`;
 const bar = (v, max) => `<div class="bar"><span class="num">${f1(v)}</span><div class="track"><i style="width:${(100 * v / max).toFixed(1)}%"></i></div></div>`;
 
@@ -413,7 +413,7 @@ function rankTable(teams, showConf) {
   // The Power tab shows the full record, league games included; Sleeper only has conference games.
   const full = showConf ? Object.fromEntries(D.league.table.map(r => [r.key, r])) : {};
   return `<div class="scroll"><table>
-    <thead><tr><th>#</th><th>Team</th>${showConf ? "<th>Conf</th>" : ""}<th>Record</th><th>All-play</th><th>Points per game</th><th class="r">Luck</th><th class="r">Lineup</th><th>Weekly scores</th></tr></thead>
+    <thead><tr><th>#</th><th>Team</th>${showConf ? "<th>Conf</th>" : ""}<th>Record</th><th>All-play</th><th>Points per game</th><th class="r">Luck</th><th class="r">Lineup</th><th>Weekly scores, latest first</th></tr></thead>
     <tbody>${teams.map(t => `<tr>
       <td class="rank">${t.rank}</td><td>${team(t.key)}</td>
       ${showConf ? `<td><span class="chip">${esc(t.conf)}</span></td>` : ""}
