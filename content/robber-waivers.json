@@ -108,6 +108,33 @@
         "ArmedRodgery21",
         "cartercole"
       ]
+    },
+    "7": {
+      "source": "automatic",
+      "before": [
+        "thatguyPegleg",
+        "Juravieal",
+        "kbartelt07",
+        "ArmedRodgery21",
+        "Ghaztyz",
+        "queens22",
+        "Dfiasco0",
+        "cartercole",
+        "vpettijohnjr",
+        "adamgum"
+      ],
+      "after": [
+        "thatguyPegleg",
+        "Ghaztyz",
+        "cartercole",
+        "vpettijohnjr",
+        "adamgum",
+        "Juravieal",
+        "kbartelt07",
+        "ArmedRodgery21",
+        "queens22",
+        "Dfiasco0"
+      ]
     }
   }
 }
