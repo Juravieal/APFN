@@ -1,0 +1,27 @@
+#!/bin/bash
+# Publish a branch to https://allprofantasy.us/buildreview/ so changes can be tried on a phone
+# before they ship. Run as apfn:  ~/review/server/apfn-review BRANCH
+# ~/review is a second checkout of the repo; it shares the live checkout's Sleeper download (data/)
+# and gets its own comment service (apfn-huddle-review, port 8082) with a copy of the live
+# Huddle database, so testing never touches real comments, votes or sign-ups.
+set -euo pipefail
+branch=${1:?"usage: apfn-review BRANCH"}
+cd /home/apfn/review
+git fetch -q origin "$branch"
+git checkout -q --detach FETCH_HEAD
+git checkout -q -- content   # undo the last build's waiver snapshot
+[ -e data ] || ln -s /home/apfn/APFN/data data
+source /home/apfn/venv/bin/activate
+python scripts/build_site.py
+python scripts/build_live.py
+rsync -a --delete --exclude '*template.html' --exclude 'advisor*' --exclude data.json site/ /var/www/apfn-review/
+# A Home Screen copy of the review site gets its own name, so it isn't mistaken for the real one.
+sed -i 's/"name": "APFN Pro League"/"name": "APFN build review"/; s/"short_name": "APFN"/"short_name": "APFN review"/' \
+  /var/www/apfn-review/manifest.webmanifest 2>/dev/null || true
+python - <<'PY'
+import sqlite3
+live, review = sqlite3.connect("/home/apfn/huddle/huddle.db"), sqlite3.connect("/home/apfn/huddle/review.db")
+live.backup(review)
+PY
+pkill -u apfn -f "scripts/huddle_api.py serve --port 8082" || true   # systemd starts the new code
+echo "$(date "+%F %T %Z") review: $branch at $(git rev-parse --short HEAD) -> https://allprofantasy.us/buildreview/"

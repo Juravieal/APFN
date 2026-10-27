@@ -8,6 +8,11 @@ hashed, and an address that keeps guessing wrong is locked out for a while.
     python scripts/huddle_api.py serve [--port 8081] [--static site]   # --static: local preview
     python scripts/huddle_api.py codes [NAME ...]    # issue codes (all managers without one, or NAME)
     python scripts/huddle_api.py admin NAME [--off]  # admins can remove comments and reissue codes
+    python scripts/huddle_api.py pushkey             # make the notification key pair, once
+
+It also keeps the phones and browsers that signed up for notifications, and which updates each
+one wants. Sending isn't built yet; push-key.pem (next to the database, never in the repo) will
+sign those messages, and push-key.txt is the public half that browsers subscribe with.
 
 The server runs it as a service on 127.0.0.1:8081; Caddy sends /api/* to it. The database lives
 at $HUDDLE_DB (on the server, ~/huddle/huddle.db, outside the repo).
@@ -17,8 +22,10 @@ import hmac
 import json
 import os
 import re
+import base64
 import secrets
 import sqlite3
+import subprocess
 import sys
 import threading
 import time
@@ -35,6 +42,18 @@ MAX_TEXT = 1500
 TAGS = ["Announcement", "Proposal", "How it works", "Rules", "Poll", "Trash talk"]
 FAIL_LIMIT, FAIL_WINDOW = 10, 15 * 60   # wrong codes per address, seconds
 COMMENT_GAP = 15                        # seconds between one member's comments
+PUSH_KEY = DB.parent / "push-key.pem"
+MAX_SUBSCRIPTIONS = 500
+# Updates members can ask to be notified about. Member topics need a Huddle sign-in, so the
+# notification can go to the right person.
+TOPICS = [
+    {"id": "recap", "label": "The weekly recap is posted", "member": False},
+    {"id": "huddle", "label": "New Huddle posts and polls", "member": False},
+    {"id": "replies", "label": "Comments on posts I've commented on", "member": True},
+    {"id": "lineup", "label": "Lineup reminders: an empty slot or a player who's out, before kickoff", "member": True},
+    {"id": "robber", "label": "Robber League steals", "member": False},
+    {"id": "guillotine", "label": "Guillotine chops", "member": False},
+]
 
 SCHEMA = """
 create table if not exists members (name text primary key collate nocase, salt text, hash text, admin integer default 0);
@@ -42,6 +61,8 @@ create table if not exists comments (id integer primary key, post text, name tex
 create table if not exists votes (post text, name text, option integer, at text, primary key (post, name));
 create table if not exists posts (id integer primary key, at text, author text, tag text, title text, summary text,
   body text, question text, detail text, options text, hidden integer default 0);
+create table if not exists subscriptions (endpoint text primary key, p256dh text, auth text, name text,
+  topics text, at text);
 """
 
 
@@ -162,6 +183,65 @@ def sign_in(con, body, ip):
     return row
 
 
+def push_public_key():
+    """The public notification key in the form browsers want (base64url, no padding), or None."""
+    public = PUSH_KEY.with_suffix(".txt")
+    return public.read_text().strip() if public.exists() else None
+
+
+def make_push_key():
+    """Create the key pair with openssl. Never replaces one: subscriptions are tied to it."""
+    if PUSH_KEY.exists():
+        return push_public_key()
+    PUSH_KEY.parent.mkdir(parents=True, exist_ok=True)
+    pem = subprocess.run(["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout"],
+                         capture_output=True, check=True).stdout
+    der = subprocess.run(["openssl", "ec", "-pubout", "-outform", "DER"], input=pem,
+                         capture_output=True, check=True).stdout
+    PUSH_KEY.write_bytes(pem)
+    PUSH_KEY.chmod(0o600)
+    public = base64.urlsafe_b64encode(der[-65:]).rstrip(b"=").decode()  # the raw P-256 point
+    PUSH_KEY.with_suffix(".txt").write_text(public + "\n")
+    return public
+
+
+def subscription(body):
+    """The browser's subscription from a request: endpoint and keys, checked for shape."""
+    sub = body.get("subscription") or {}
+    endpoint, keys = str(sub.get("endpoint") or ""), sub.get("keys") or {}
+    p256dh, auth = str(keys.get("p256dh") or ""), str(keys.get("auth") or "")
+    if not re.fullmatch(r"https://[\w.-]+(:\d+)?/\S{1,900}", endpoint):
+        raise Refuse(400, "That isn't a notification address.")
+    if not re.fullmatch(r"[\w-]{20,200}", p256dh) or not re.fullmatch(r"[\w-]{8,100}", auth):
+        raise Refuse(400, "That subscription is missing its keys.")
+    return endpoint, p256dh, auth
+
+
+def push(con, path, body, ip):
+    """Notification sign-ups. Signing in is optional; it links the phone to a manager."""
+    if path == "/api/huddle/push/remove":
+        con.execute("delete from subscriptions where endpoint = ?", (str(body.get("endpoint") or ""),))
+        return {"topics": []}
+    if path == "/api/huddle/push/get":
+        row = con.execute("select name, topics from subscriptions where endpoint = ?",
+                          (str(body.get("endpoint") or ""),)).fetchone()
+        return {"topics": json.loads(row["topics"]) if row else [], "name": row["name"] if row else None,
+                "saved": bool(row)}
+    if path != "/api/huddle/push/save":
+        raise Refuse(404, "Not found.")
+    endpoint, p256dh, auth = subscription(body)
+    name = sign_in(con, body, ip)["name"] if body.get("name") or body.get("code") else None
+    known = {t["id"]: t for t in TOPICS}
+    topics = [t for t in dict.fromkeys(body.get("topics") or []) if t in known and (name or not known[t]["member"])]
+    exists = con.execute("select 1 from subscriptions where endpoint = ?", (endpoint,)).fetchone()
+    if not exists and con.execute("select count(*) from subscriptions").fetchone()[0] >= MAX_SUBSCRIPTIONS:
+        raise Refuse(429, "Notification sign-ups are full right now.")
+    con.execute("insert into subscriptions values (?, ?, ?, ?, ?, ?) on conflict(endpoint) do update set "
+                "p256dh = excluded.p256dh, auth = excluded.auth, name = excluded.name, topics = excluded.topics, "
+                "at = excluded.at", (endpoint, p256dh, auth, name, json.dumps(topics), now()))
+    return {"topics": topics, "name": name, "saved": True}
+
+
 def everything(con):
     out = {}
     for c in con.execute("select id, post, name, at, text from comments where hidden = 0 order by id"):
@@ -178,8 +258,12 @@ def handle(path, body, ip):
     with db() as con:
         if path == "/api/huddle" and body is None:
             return everything(con)
+        if path == "/api/huddle/push" and body is None:
+            return {"key": push_public_key(), "topics": TOPICS}
         if body is None:
             raise Refuse(404, "Not found.")
+        if path.startswith("/api/huddle/push/"):
+            return push(con, path, body, ip)
         me = sign_in(con, body, ip)
         if path == "/api/huddle/check":
             return {"name": me["name"], "admin": bool(me["admin"])}
@@ -250,7 +334,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply(e.status, {"error": e.message})
 
     def do_GET(self):
-        if self.path.split("?")[0] == "/api/huddle":
+        if self.path.split("?")[0] in ("/api/huddle", "/api/huddle/push"):
             return self.api(None)
         if self.serve_static and not self.path.startswith("/api/"):
             return super().do_GET()
@@ -295,6 +379,8 @@ def main(argv):
             con.execute("insert into members (name, admin) values (?, ?) on conflict(name) do update set admin = excluded.admin",
                         (argv[1], 0 if "--off" in argv else 1))
         print(argv[1], "is", "no longer an admin" if "--off" in argv else "an admin")
+    elif cmd == "pushkey":
+        print("public key:", make_push_key())
     else:
         print(__doc__)
 

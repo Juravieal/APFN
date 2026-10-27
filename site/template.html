@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>APFN League Hub</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="APFN">
+<meta name="theme-color" content="#111214">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Exo+2:ital,wght@1,800;1,900&family=IBM+Plex+Sans:wght@400;500;600&family=Saira:wght@600;700&display=swap">
 <style>
 /* Layout: scoreboard header, three tabs, dense ranked tables; summary tiles sit above the detail. */
@@ -340,6 +344,20 @@ form.compose .row button.link { margin-left: 0; }
 footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
 a.jump:hover { background: var(--accent-soft); }
+button.bell { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--fg2); border-radius: 4px; cursor: pointer; margin-left: auto; }
+button.bell + a.jump { margin-left: 0; }
+dialog.notify { width: min(460px, calc(100vw - 32px)); }
+dialog.notify > div { display: flex; flex-direction: column; gap: 12px; }
+#notify-body { display: flex; flex-direction: column; gap: 12px; }
+dialog.notify fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+dialog.notify legend { padding: 0; margin-bottom: 4px; }
+dialog.notify label { display: flex; gap: 8px; align-items: flex-start; }
+dialog.notify label input { width: auto; flex: none; padding: 0; margin: 3px 0 0; accent-color: var(--accent); }
+dialog.notify label.off { color: var(--fg3); }
+dialog.notify .small { font-size: 13px; }
+dialog.notify .steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+dialog.notify button.go { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+dialog.notify button:disabled { opacity: .5; cursor: default; }
 </style>
 </head>
 <body>
@@ -367,6 +385,7 @@ a.jump:hover { background: var(--accent-soft); }
     <button role="tab" id="tab-records" data-tab="records">Record book</button>
     <button role="tab" id="tab-huddle" data-tab="huddle">The Huddle</button>
     <button role="tab" id="tab-commish" data-tab="commish" class="locked">League Admin</button>
+    <button type="button" class="bell" id="notify-open">Notifications</button>
     <a class="jump" href="live.html">Live scoreboard</a>
   </nav>
 
@@ -387,6 +406,10 @@ a.jump:hover { background: var(--accent-soft); }
       <p class="err" id="pin-error" role="alert"></p>
       <div class="row"><button type="button" id="pin-cancel">Cancel</button><button type="submit">Open</button></div>
     </form>
+  </dialog>
+
+  <dialog class="pin notify" id="notify-dialog" aria-labelledby="notify-title">
+    <div><h2 id="notify-title">Notifications</h2><div id="notify-body"></div></div>
   </dialog>
 
   <footer id="foot"></footer>
@@ -840,7 +863,7 @@ try { huddleMe = JSON.parse(localStorage.getItem(HUDDLE_ME)); } catch (_) {}
 async function huddleCall(path, body) {
   const opts = body ? { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: huddleMe?.name, code: huddleMe?.code, ...body }) } : { cache: "no-store" };
-  const r = await fetch("/api/huddle" + path, opts).catch(() => null);
+  const r = await fetch("api/huddle" + path, opts).catch(() => null);
   const out = r ? await r.json().catch(() => null) : null;
   if (!r || !out) throw new Error("The comment server didn't answer. Try again in a minute.");
   if (!r.ok) throw new Error(out.error || "Something went wrong.");
@@ -861,6 +884,83 @@ async function huddleDo(errEl, path, body, after) {
   }
   catch (e) { errEl.textContent = e.message; }
 }
+
+// ---- notifications --------------------------------------------------------------------------------
+// A phone or browser signs up for the updates its owner picks; the Huddle server keeps the list.
+// iPhones only allow this from the Home Screen version of the site (iOS 16.4 and later).
+const pushOK = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const homeScreen = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+// The server's key and topic list, this browser's subscription, and what the server has saved for it.
+let pushInfo = null, pushSub = null, pushSaved = null, pushBusy = false, pushMsg = "";
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+const keyBytes = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4)), c => c.charCodeAt(0));
+
+async function openNotify() {
+  pushMsg = ""; pushInfo = null;
+  document.getElementById("notify-dialog").showModal();
+  renderNotify(true);
+  try {
+    pushInfo = await huddleCall("/push");
+    if (pushOK) {
+      pushSub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+      pushSaved = pushSub ? await huddleCall("/push/get", { endpoint: pushSub.endpoint }) : null;
+    }
+  } catch (e) { pushMsg = e.message; }
+  renderNotify();
+}
+
+function renderNotify(loading) {
+  const el = document.getElementById("notify-body"), me = huddleMe?.name, on = pushSaved?.saved;
+  const close = `<div class="row"><button type="button" data-n="close">Close</button></div>`;
+  let html;
+  if (loading) html = `<p class="note">Checking this device…</p>`;
+  else if (!pushOK && iOS && !homeScreen) html = `<p class="note">On iPhone, notifications only work from the Home Screen version of the site (iOS 16.4 or later).</p>
+    <ol class="steps"><li>Tap the <b>Share</b> button in Safari.</li><li>Choose <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>Open APFN from your Home Screen and tap <b>Notifications</b> again.</li></ol>${close}`;
+  else if (!pushOK) html = `<p class="note">This browser can't receive notifications. Chrome on Android can, and so can the Home Screen version of the site on iPhone.</p>${close}`;
+  else if (Notification.permission === "denied") html = `<p class="note">Notifications are blocked for this site. Allow them in your browser or phone settings, then come back here.</p>${close}`;
+  else if (!pushInfo?.key) html = `<p class="note">${esc(pushMsg || "Notifications aren't switched on for the site yet. Check back soon.")}</p>${close}`;
+  else {
+    const picked = new Set(on ? pushSaved.topics : ["recap", "huddle", ...(me ? ["lineup"] : [])]);
+    html = `<p><span class="chip ${on ? "up" : ""}">${on ? "On" : "Off"}</span> ${on ? `for this device${pushSaved.name ? ` · linked to <b>${esc(pushSaved.name)}</b>` : ""}` : "on this device"}</p>
+      <fieldset><legend class="note">Tell me when:</legend>${pushInfo.topics.map(t => {
+        const locked = t.member && !me;
+        return `<label class="${locked ? "off" : ""}"><input type="checkbox" value="${t.id}" ${picked.has(t.id) && !locked ? "checked" : ""} ${locked ? "disabled" : ""}> ${esc(t.label)}</label>`;
+      }).join("")}</fieldset>
+      ${me ? "" : `<p class="note small">The greyed-out ones are about you, so sign in on The Huddle tab first.</p>`}
+      <p class="note small">Sending starts soon. Sign up now, and notifications begin once the league switches them on.</p>
+      <p class="err" role="alert">${esc(pushMsg)}</p>
+      <div class="row">${on ? `<button type="button" data-n="off">Turn off</button>` : ""}<button type="button" data-n="close">Close</button>
+        <button type="button" class="go" data-n="${on ? "save" : "on"}" ${pushBusy ? "disabled" : ""}>${on ? "Save" : "Turn on"}</button></div>`;
+  }
+  el.innerHTML = html;
+}
+
+async function notifyAction(what) {
+  if (what === "close") return document.getElementById("notify-dialog").close();
+  const topics = [...document.querySelectorAll("#notify-body input:checked")].map(i => i.value);
+  pushBusy = true; pushMsg = ""; renderNotify();
+  try {
+    if (what === "on") {
+      if (await Notification.requestPermission() !== "granted") throw new Error("Notifications weren't allowed, so nothing was turned on.");
+      const reg = await navigator.serviceWorker.ready;
+      pushSub = await reg.pushManager.getSubscription()
+        || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(pushInfo.key) });
+    }
+    if (what === "off") {
+      await huddleCall("/push/remove", { endpoint: pushSub.endpoint });
+      await pushSub.unsubscribe().catch(() => {});
+      pushSub = null; pushSaved = null;
+    } else {
+      pushSaved = await huddleCall("/push/save", { subscription: pushSub.toJSON(), topics });
+    }
+  } catch (e) { pushMsg = e.message; }
+  pushBusy = false; renderNotify();
+}
+document.getElementById("notify-open").addEventListener("click", openNotify);
+document.getElementById("notify-body").addEventListener("click", e => {
+  const b = e.target.closest("button[data-n]"); if (b && !b.disabled) notifyAction(b.dataset.n);
+});
 
 function renderHuddle() {
   const el = document.getElementById("huddle"), me = huddleMe?.name, live = huddle && !huddleOffline;
@@ -1071,7 +1171,7 @@ function show(tab) {
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
 }
 document.getElementById("tabs").addEventListener("click", e => {
-  const b = e.target.closest("button"); if (!b) return;
+  const b = e.target.closest("button[data-tab]"); if (!b) return;
   show(b.dataset.tab);
   try { history.replaceState(null, "", "#" + b.dataset.tab); } catch (_) {}
 });
