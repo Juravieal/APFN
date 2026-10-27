@@ -410,12 +410,14 @@ const bar = (v, max) => `<div class="bar"><span class="num">${f1(v)}</span><div 
 
 function rankTable(teams, showConf) {
   const max = Math.max(...teams.map(t => t.ppg));
+  // The Power tab shows the full record, league games included; Sleeper only has conference games.
+  const full = showConf ? Object.fromEntries(D.league.table.map(r => [r.key, r])) : {};
   return `<div class="scroll"><table>
     <thead><tr><th>#</th><th>Team</th>${showConf ? "<th>Conf</th>" : ""}<th>Record</th><th>All-play</th><th>Points per game</th><th class="r">Luck</th><th class="r">Lineup</th><th>Weekly scores</th></tr></thead>
     <tbody>${teams.map(t => `<tr>
       <td class="rank">${t.rank}</td><td>${team(t.key)}</td>
       ${showConf ? `<td><span class="chip">${esc(t.conf)}</span></td>` : ""}
-      <td>${rec(t)}</td><td>${t.ap_w}–${t.ap_l}${t.ap_t ? "–" + t.ap_t : ""}</td>
+      <td>${rec(full[t.key] || t)}</td><td>${t.ap_w}–${t.ap_l}${t.ap_t ? "–" + t.ap_t : ""}</td>
       <td>${bar(t.ppg, max)}</td>
       <td class="r"><span class="${t.luck > 0 ? "pos" : t.luck < 0 ? "neg" : ""}">${signed(t.luck)}</span>${luckChip(t.luck)}</td>
       <td class="r" title="${f1(t.left)} points left on the bench">${t.eff == null ? "" : f1(t.eff) + "%"}</td>
@@ -547,12 +549,12 @@ function renderPower() {
     <div class="tiles">
       <div class="tile"><span class="k">Number one</span><span class="v">${esc(ts[0].team)}</span><span class="s">${esc(ts[0].manager)} · ${esc(ts[0].conf)} · all-play ${ts[0].ap_w}–${ts[0].ap_l}</span></div>
       <div class="tile"><span class="k">Conference vs conference</span><span class="v">${esc(lead)} ${D.cross[lead]}–${D.cross[trail]}</span><span class="s">Every ${esc(a)} score against every ${esc(b)} score, each week. Average ${f1(D.conf_ppg[a])} vs ${f1(D.conf_ppg[b])} a game.</span></div>
-      <div class="tile"><span class="k">Luckiest</span><span class="v">${esc(lucky.team)}</span><span class="s">${esc(lucky.manager)} · ${rec(lucky)} with ${f2(lucky.xw)} expected wins</span></div>
-      <div class="tile"><span class="k">Unluckiest</span><span class="v">${esc(unlucky.team)}</span><span class="s">${esc(unlucky.manager)} · ${rec(unlucky)} with ${f2(unlucky.xw)} expected wins</span></div>
+      <div class="tile"><span class="k">Luckiest</span><span class="v">${esc(lucky.team)}</span><span class="s">${esc(lucky.manager)} · ${rec(lucky)} in conference with ${f2(lucky.xw)} expected wins</span></div>
+      <div class="tile"><span class="k">Unluckiest</span><span class="v">${esc(unlucky.team)}</span><span class="s">${esc(unlucky.manager)} · ${rec(unlucky)} in conference with ${f2(unlucky.xw)} expected wins</span></div>
     </div>
     <div class="block">
       <h2>All 20 teams, one table</h2>
-      <p class="note">Ranked by all-play record: each week, every team is scored against the other 19 across both conferences, so the schedule stops mattering. Luck is actual wins minus the wins that all-play record would predict. Lineup is points scored as a share of the best lineup that roster could have started.</p>
+      <p class="note">Ranked by all-play record: each week, every team is scored against the other 19 across both conferences, so the schedule stops mattering. Record includes the cross-conference league games. Luck is actual wins minus the wins that all-play record would predict, in conference games. Lineup is points scored as a share of the best lineup that roster could have started.</p>
       ${rankTable(ts, true)}
     </div>`;
 }
