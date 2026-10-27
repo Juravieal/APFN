@@ -284,6 +284,42 @@ h2.week-head { font-size: 22px; color: var(--accent); }
   article.story .game, .finals { break-inside: avoid; }
   article.story .kicker .crest-sm { width: 44px; filter: none; }
 }
+/* The Huddle: posts, a vote and a comment thread */
+article.post { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 6px; padding: 18px 18px 20px; }
+article.post .lede { font-size: 16px; line-height: 1.55; max-width: 72ch; color: var(--fg); }
+article.post .prose h3 { margin-top: 8px; }
+article.post .prose ol, article.post .prose ul { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+.poll { display: flex; flex-direction: column; gap: 8px; max-width: 560px; padding: 14px; background: var(--sunken); border-radius: 6px; }
+.poll .q { font-weight: 600; font-size: 15px; }
+.poll .opt { position: relative; display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; overflow: hidden; text-align: left;
+  font: 500 14px var(--body); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+.poll .opt .fill { position: absolute; inset: 0 auto 0 0; background: var(--accent-soft); z-index: 0; }
+.poll .opt .lab, .poll .opt .cnt { position: relative; z-index: 1; }
+.poll .opt.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.poll .opt.on .lab::after { content: " · your vote"; color: var(--accent); font-weight: 600; }
+.poll .opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.thread { display: flex; flex-direction: column; gap: 10px; max-width: 72ch; padding-top: 14px; border-top: 1px dashed var(--line); }
+ul.comments { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+ul.comments li { display: flex; flex-direction: column; gap: 3px; padding-left: 12px; border-left: 3px solid var(--line); }
+ul.comments .c-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+ul.comments p { overflow-wrap: anywhere; white-space: pre-line; }
+form.reply { display: flex; flex-direction: column; gap: 8px; }
+form.reply textarea { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); resize: vertical; width: 100%; box-sizing: border-box; }
+form.reply textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+form.reply .row { display: flex; justify-content: flex-end; }
+.poll .opt:disabled { cursor: default; }
+.poll .voters { margin: -4px 0 2px 12px; color: var(--fg3); font-size: 12px; }
+.signin { align-items: center; }
+.signin input { font: 600 16px var(--body); letter-spacing: .2em; width: 9.5em; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--fg); }
+.signin input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#huddle .pick .err { flex-basis: 100%; }
+#huddle .err { color: var(--loss); margin: 0; }
+#huddle .err:empty, .code-out:empty { display: none; }
+.admin-codes { max-width: 560px; }
+.code-out { font-size: 16px; }
+button.link { margin-left: auto; font: 500 12px var(--body); color: var(--fg3); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+button.link:hover { color: var(--loss); }
+.pick label { font: 600 14px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--fg2); }
 footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
 a.jump:hover { background: var(--accent-soft); }
@@ -312,6 +348,7 @@ a.jump:hover { background: var(--accent-soft); }
     <button role="tab" id="tab-robber" data-tab="robber">Robber League</button>
     <button role="tab" id="tab-guillotine" data-tab="guillotine">Guillotine</button>
     <button role="tab" id="tab-records" data-tab="records">Record book</button>
+    <button role="tab" id="tab-huddle" data-tab="huddle">The Huddle</button>
     <button role="tab" id="tab-commish" data-tab="commish" class="locked">League Admin</button>
     <a class="jump" href="live.html">Live scoreboard</a>
   </nav>
@@ -323,6 +360,7 @@ a.jump:hover { background: var(--accent-soft); }
   <section class="panel" id="robber" role="tabpanel" aria-labelledby="tab-robber" hidden></section>
   <section class="panel" id="guillotine" role="tabpanel" aria-labelledby="tab-guillotine" hidden></section>
   <section class="panel" id="records" role="tabpanel" aria-labelledby="tab-records" hidden></section>
+  <section class="panel" id="huddle" role="tabpanel" aria-labelledby="tab-huddle" hidden></section>
   <section class="panel" id="commish" role="tabpanel" aria-labelledby="tab-commish" hidden></section>
   <dialog class="pin" id="pin-dialog" aria-labelledby="pin-title">
     <form id="pin-form">
@@ -759,6 +797,122 @@ document.getElementById("pin-form").addEventListener("submit", async e => {
 });
 document.getElementById("pin-cancel").addEventListener("click", () => document.getElementById("pin-dialog").close());
 
+// ---- The Huddle: league posts with a vote and a comment thread ---------------------------------
+// Posts are built into the page from content/huddle/. Comments and votes come from the server's
+// small API (scripts/huddle_api.py); members sign in with their Sleeper name and a 6-digit code,
+// which this browser remembers.
+const HUDDLE_ME = "apfn-huddle-me";
+let huddle = null, huddleOffline = false, huddleMe = null;  // huddleMe: { name, code, admin }
+try { huddleMe = JSON.parse(localStorage.getItem(HUDDLE_ME)); } catch (_) {}
+async function huddleCall(path, body) {
+  const opts = body ? { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: huddleMe?.name, code: huddleMe?.code, ...body }) } : { cache: "no-store" };
+  const r = await fetch("/api/huddle" + path, opts).catch(() => null);
+  const out = r ? await r.json().catch(() => null) : null;
+  if (!r || !out) throw new Error("The comment server didn't answer. Try again in a minute.");
+  if (!r.ok) throw new Error(out.error || "Something went wrong.");
+  return out;
+}
+async function huddleLoad() {
+  try { huddle = (await huddleCall("")).posts; huddleOffline = false; } catch (_) { huddleOffline = true; }
+  renderHuddle();
+}
+// Run an action; on success redraw with the server's answer, on failure show why next to the control.
+async function huddleDo(errEl, path, body, after) {
+  errEl.textContent = "";
+  try { const out = await huddleCall(path, body); if (out.posts) huddle = out.posts; after?.(out); renderHuddle(); }
+  catch (e) { errEl.textContent = e.message; }
+}
+
+function renderHuddle() {
+  const el = document.getElementById("huddle"), me = huddleMe?.name, live = huddle && !huddleOffline;
+  const managers = [...new Set(D.teams.map(t => t.manager))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  const day = s => new Date(s).toLocaleDateString([], { month: "short", day: "numeric" });
+  const stamp = s => new Date(s).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const block = b => b.h ? `<h3>${esc(b.h)}</h3>` : b.p ? `<p>${boldNames(esc(b.p))}</p>`
+    : `<${b.ol ? "ol" : "ul"}>${(b.ol || b.ul).map(x => `<li>${boldNames(esc(x))}</li>`).join("")}</${b.ol ? "ol" : "ul"}>`;
+  const status = huddleOffline ? `<p class="note"><span class="chip warn">Offline</span> Comments and votes can't be reached right now. The posts are all here.</p>`
+    : !huddle ? `<p class="note">Loading comments and votes…</p>` : "";
+  const signin = me
+    ? `<div class="pick signin"><span>Signed in as <b class="un">${esc(me)}</b>${huddleMe.admin ? ` <span class="chip loot">Admin</span>` : ""}</span><button type="button" class="pdf" id="huddle-out">Sign out</button></div>
+      ${huddleMe.admin ? `<details class="season admin-codes"><summary>Admin: member codes</summary><div>
+        <p class="note">Issue a new code when a manager needs one or has lost theirs. Their old code stops working at once. Send it to them privately.</p>
+        <form class="pick" id="huddle-reissue"><label class="sr-only" for="reissue-who">Manager</label>
+          <select id="reissue-who">${managers.map(m => `<option>${esc(m)}</option>`).join("")}</select>
+          <button type="submit" class="pdf">Issue new code</button><p class="err" role="alert"></p></form>
+        <p class="code-out" id="reissue-out" aria-live="polite"></p></div></details>` : ""}`
+    : `<form class="pick signin" id="huddle-in">
+        <label for="huddle-name">Sign in</label>
+        <select id="huddle-name" required><option value="">Your Sleeper name</option>${managers.map(m => `<option>${esc(m)}</option>`).join("")}</select>
+        <label class="sr-only" for="huddle-code">Your 6-digit code</label>
+        <input id="huddle-code" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="6-digit code" required>
+        <button type="submit" class="pdf">Sign in</button>
+        <p class="err" role="alert"></p>
+      </form><p class="vs">Every manager has a personal code. Ask a league admin if you don't have yours.</p>`;
+  const post = P => {
+    const st = (huddle || {})[P.id] || { comments: [], votes: {} };
+    const opts = P.proposal?.options || [];
+    const voters = opts.map((_, i) => Object.keys(st.votes).filter(n => st.votes[n] === i).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })));
+    const total = voters.reduce((a, v) => a + v.length, 0), mine = st.votes[me];
+    const vote = P.proposal ? `<div class="poll">
+        <div class="eyebrow">League vote</div><p class="q">${esc(P.proposal.question)}</p>${P.proposal.detail ? `<p class="note">${esc(P.proposal.detail)}</p>` : ""}
+        ${opts.map((o, i) => `<button type="button" class="opt${mine === i ? " on" : ""}" data-post="${esc(P.id)}" data-vote="${i}" ${me && live ? "" : "disabled"}>
+          <span class="fill" style="width:${total ? (100 * voters[i].length / total).toFixed(0) : 0}%"></span><span class="lab">${esc(o)}</span><span class="cnt num">${voters[i].length}</span></button>
+          ${voters[i].length ? `<p class="voters">${voters[i].map(esc).join(", ")}</p>` : ""}`).join("")}
+        <p class="err" role="alert"></p>
+        <p class="vs">${live ? `${total} of ${managers.length} managers have voted. Votes are public${me ? (mine != null ? "; pick another option to change yours" : "") : "; sign in to vote"}.` : ""}</p></div>` : "";
+    const comments = st.comments.map(c => `<li><div class="c-head"><b class="un">${esc(c.who)}</b><span class="vs">${esc(stamp(c.at))}</span>
+        ${me && (c.who === me || huddleMe.admin) ? `<button type="button" class="link" data-remove="${c.id}">Remove</button>` : ""}</div><p>${esc(c.text)}</p></li>`).join("");
+    return `<article class="story post">
+      <div class="kicker"><div class="txt"><span class="eyebrow">${esc(P.tag)} · ${esc(day(P.date + "T12:00"))} · posted by ${esc(P.author)}</span><h2>${esc(P.title)}</h2></div></div>
+      <p class="lede">${boldNames(esc(P.summary))}</p>
+      <div class="prose">${P.blocks.map(block).join("")}</div>
+      ${vote}
+      <div class="thread" data-post="${esc(P.id)}"><h3>${live ? `${st.comments.length} comment${st.comments.length === 1 ? "" : "s"}` : "Comments"}</h3>
+        ${comments ? `<ul class="comments">${comments}</ul>` : live ? `<p class="note">No comments yet. Get it started.</p>` : ""}
+        <p class="err" role="alert"></p>
+        ${me && live ? `<form class="reply" data-post="${esc(P.id)}">
+          <label class="sr-only" for="reply-${esc(P.id)}">Your comment</label>
+          <textarea id="reply-${esc(P.id)}" rows="3" maxlength="1500" placeholder="Add to the discussion" required></textarea>
+          <div class="row"><button type="submit" class="pdf">Post comment</button></div>
+        </form>` : live ? `<p class="vs">Sign in at the top of the page to comment.</p>` : ""}</div>
+    </article>`;
+  };
+  el.innerHTML = `<div class="block"><p class="note">League business: how things work, proposed changes and votes. Read the post, vote, and say your piece underneath.</p>${signin}</div>
+    ${status}${(D.huddle || []).map(post).join("") || `<p class="note">Nothing posted yet.</p>`}`;
+
+  const errOf = node => node.closest("form, .poll, .thread").querySelector(".err");
+  el.querySelector("#huddle-in")?.addEventListener("submit", e => {
+    e.preventDefault();
+    const name = el.querySelector("#huddle-name").value, code = el.querySelector("#huddle-code").value.trim();
+    huddleDo(errOf(e.target), "/check", { name, code }, out => {
+      huddleMe = { name: out.name, code, admin: out.admin };
+      try { localStorage.setItem(HUDDLE_ME, JSON.stringify(huddleMe)); } catch (_) {}
+    });
+  });
+  el.querySelector("#huddle-out")?.addEventListener("click", () => {
+    huddleMe = null;
+    try { localStorage.removeItem(HUDDLE_ME); } catch (_) {}
+    renderHuddle();
+  });
+  el.querySelector("#huddle-reissue")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = errOf(e.target), out = el.querySelector("#reissue-out"), member = el.querySelector("#reissue-who").value;
+    err.textContent = ""; out.textContent = "";
+    try { const r = await huddleCall("/reissue", { member }); out.innerHTML = `New code for <b>${esc(r.member)}</b>: <b class="num">${esc(r.code)}</b>`; }
+    catch (x) { err.textContent = x.message; }
+  });
+  el.querySelectorAll("button[data-vote]").forEach(b => b.addEventListener("click", () =>
+    huddleDo(errOf(b), "/vote", { post: b.dataset.post, option: +b.dataset.vote })));
+  el.querySelectorAll("button[data-remove]").forEach(b => b.addEventListener("click", () => {
+    if (confirm("Remove this comment?")) huddleDo(errOf(b), "/remove", { id: +b.dataset.remove });
+  }));
+  el.querySelectorAll("form.reply").forEach(f => f.addEventListener("submit", e => {
+    e.preventDefault();
+    huddleDo(f.closest(".thread").querySelector(".err"), "/comment", { post: f.dataset.post, text: f.querySelector("textarea").value });
+  }));
+}
+
 // ---- banner ------------------------------------------------------------------------------------
 function roman(n) { return [[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]].reduce((s, [v, r]) => { while (n >= v) { s += r; n -= v; } return s; }, ""); }
 function renderHero() {
@@ -826,8 +980,9 @@ async function heroLive() {
 }
 
 function show(tab) {
-  if (!["recap", "preview", "power", "conferences", "robber", "guillotine", "records", "commish"].includes(tab)) tab = "recap";
+  if (!["recap", "preview", "power", "conferences", "robber", "guillotine", "records", "huddle", "commish"].includes(tab)) tab = "recap";
   if (tab === "commish" && !commishOpen) { askPin(); return; }
+  if (tab === "huddle") huddleLoad();  // fresh comments and votes each time the tab opens
   document.querySelectorAll("section.panel").forEach(p => p.hidden = p.id !== tab);
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
 }
@@ -841,7 +996,7 @@ renderHero();
 heroLive();
 heroTimer = setInterval(heroLive, 60000);
 document.getElementById("foot").textContent = "Scores and rosters come from Sleeper's public API. Rankings, luck and robbery figures are calculated here and are not official league standings.";
-renderRecap(); renderPreview(); renderPower(); renderConferences(); renderRobber(); renderGuillotine(); renderRecords();
+renderRecap(); renderPreview(); renderPower(); renderConferences(); renderRobber(); renderGuillotine(); renderRecords(); renderHuddle();
 if (commishOpen) { renderCommish(); document.getElementById("tab-commish").classList.remove("locked"); }
 show(location.hash.slice(1));
 </script>

@@ -738,6 +738,9 @@ def compute():
     data["robber"]["waiver_rule"] = robber_waivers(rob)
     data["commish"] = commissioner([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)],
                                    data["robber"])
+    # The Huddle: league posts, newest first. Comments and votes come from the server, not the build.
+    data["huddle"] = [dict(json.loads(p.read_text(encoding="utf-8")), id=p.stem)
+                      for p in sorted((ROOT / "content" / "huddle").glob("*.json"), reverse=True)]
     return data
 
 

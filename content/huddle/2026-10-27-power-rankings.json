@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-27",
+  "author": "Juravieal",
+  "tag": "How it works",
+  "title": "How the power rankings work, and where league games fit",
+  "summary": "A question came up about whether the power rankings count the cross-conference league games. Short answer: the ranking doesn't use anyone's wins or losses, but two of its columns leave league games out, and that should change.",
+  "blocks": [
+    {"h": "How the ranking works"},
+    {"ol": [
+      "Each week, every team plays everybody. Your score is compared with all 19 other teams' scores in both conferences. Beat 14 of them and you go 14-5 for that week. This is called an all-play record.",
+      "Add the weeks up. After 7 weeks everyone has played 133 of these virtual games.",
+      "Sort by all-play win percentage. If two teams tie, the one with more points per game ranks higher."
+    ]},
+    {"p": "That's the whole ranking. Who you happened to play doesn't matter, only how many points you scored. It answers \"who is actually good?\" rather than \"who has won?\""},
+    {"h": "Where league games fit in"},
+    {"ul": [
+      "The ranking: a league game is just one more opponent. Your score that week is already compared with all 19 teams, including your league-game opponent, so it can't add anything new. Your score counts once per week, the same way the league table counts points for.",
+      "The Record column: it shows the Sleeper conference record only, so league-game wins and losses are missing. Juravieal shows 5-2 there but is really 7-3.",
+      "Luck: actual wins minus the wins your scores deserved. It also counts conference wins only."
+    ]},
+    {"p": "The League table on the Conferences tab is the one that counts league games, and it already does: all 20 teams by total wins, then points for."},
+    {"h": "An example from right now"},
+    {"p": "ArmedRodgery21 is 10-0 and top of the league table but #2 in power, because Argrider scores about 7.5 more a week (153.1 against 145.6). seachicken22 is 6-4 but #14 in power: below-average scores and some luck. A good record and a strong team aren't the same thing."}
+  ],
+  "proposal": {
+    "question": "Show the full league record on the Power tab, and count league games in Luck?",
+    "detail": "The ranking itself stays the same. Only the Record and Luck columns change.",
+    "options": ["Yes, change it", "No, leave it", "Something else (comment below)"]
+  }
+}
