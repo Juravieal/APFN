@@ -1,6 +1,7 @@
 """The Huddle's comments and votes: a small JSON API with a SQLite file behind it.
 
-Posts are files in content/huddle/ (built into the page); this only stores what members add.
+Posts come from two places: files in content/huddle/ (built into the page) and posts admins
+write on the Huddle tab, which are stored here with the comments and votes.
 Each manager signs in with their Sleeper name and a personal 6-digit code. Codes are stored
 hashed, and an address that keeps guessing wrong is locked out for a while.
 
@@ -31,6 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 POSTS = ROOT / "content" / "huddle"
 DB = Path(os.environ.get("HUDDLE_DB", ROOT / "data" / "huddle.db"))
 MAX_TEXT = 1500
+TAGS = ["Announcement", "Proposal", "How it works", "Rules", "Poll", "Trash talk"]
 FAIL_LIMIT, FAIL_WINDOW = 10, 15 * 60   # wrong codes per address, seconds
 COMMENT_GAP = 15                        # seconds between one member's comments
 
@@ -38,6 +40,8 @@ SCHEMA = """
 create table if not exists members (name text primary key collate nocase, salt text, hash text, admin integer default 0);
 create table if not exists comments (id integer primary key, post text, name text, at text, text text, hidden integer default 0);
 create table if not exists votes (post text, name text, option integer, at text, primary key (post, name));
+create table if not exists posts (id integer primary key, at text, author text, tag text, title text, summary text,
+  body text, question text, detail text, options text, hidden integer default 0);
 """
 
 
@@ -66,11 +70,56 @@ def manager(name):
     return next((m for m in managers() if m.lower() == str(name).lower()), None)
 
 
-def post(pid):
-    if not re.fullmatch(r"[\w-]{1,80}", pid or ""):
+def article(row):
+    """A post written on the Huddle tab, in the same shape as a content/huddle/ file (body as text)."""
+    options = json.loads(row["options"] or "[]")
+    return {"id": f"p{row['id']}", "date": row["at"], "author": row["author"], "tag": row["tag"],
+            "title": row["title"], "summary": row["summary"], "body": row["body"],
+            "proposal": {"question": row["question"], "detail": row["detail"], "options": options} if options else None}
+
+
+def post(con, pid):
+    """A post by id: "p<number>" for one written on the tab, otherwise a content/huddle/ file name."""
+    pid = str(pid or "")
+    if re.fullmatch(r"p\d{1,9}", pid):
+        row = con.execute("select * from posts where id = ? and hidden = 0", (int(pid[1:]),)).fetchone()
+        return article(row) if row else None
+    if not re.fullmatch(r"[\w-]{1,80}", pid):
         return None
     path = POSTS / f"{pid}.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def clean(body, key, limit, required=False):
+    text = re.sub(r"\n{3,}", "\n\n", str(body.get(key) or "").replace("\r", "").strip())
+    if len(text) > limit or (required and not text):
+        raise Refuse(400, f"The {key} needs to be {'1' if required else '0'} to {limit} characters.")
+    return text
+
+
+def write_post(con, me, body):
+    """Create a post, or edit one when body has an id. Poll options are locked once anyone has voted."""
+    tag = body.get("tag") if body.get("tag") in TAGS else TAGS[0]
+    title, summary = clean(body, "title", 120, True), clean(body, "summary", 500)
+    text, question, detail = clean(body, "body", 10000), clean(body, "question", 200), clean(body, "detail", 300)
+    options = [str(o).strip()[:80] for o in body.get("options") or [] if str(o).strip()]
+    if question and not 2 <= len(options) <= 6:
+        raise Refuse(400, "A vote needs 2 to 6 options.")
+    if options and not question:
+        raise Refuse(400, "Give the vote a question.")
+    fields = (tag, title, summary, text, question, detail, json.dumps(options))
+    if body.get("id") is None:
+        con.execute("insert into posts (at, author, tag, title, summary, body, question, detail, options) "
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?)", (now(), me["name"], *fields))
+        return
+    old = post(con, body["id"])
+    if not old or not str(body["id"]).startswith("p"):
+        raise Refuse(404, "That post can't be edited here.")
+    voted = con.execute("select 1 from votes where post = ? limit 1", (body["id"],)).fetchone()
+    if voted and options != (old["proposal"] or {}).get("options", []):
+        raise Refuse(400, "People have already voted, so the vote's options can't change.")
+    con.execute("update posts set tag = ?, title = ?, summary = ?, body = ?, question = ?, detail = ?, options = ? "
+                "where id = ?", (*fields, int(body["id"][1:])))
 
 
 def digest(salt, code):
@@ -120,7 +169,8 @@ def everything(con):
             {"id": c["id"], "who": c["name"], "at": c["at"], "text": c["text"]})
     for v in con.execute("select post, name, option from votes"):
         out.setdefault(v["post"], {"comments": [], "votes": {}})["votes"][v["name"]] = v["option"]
-    return {"posts": out}
+    articles = [article(r) for r in con.execute("select * from posts where hidden = 0 order by id desc")]
+    return {"posts": out, "articles": articles}
 
 
 def handle(path, body, ip):
@@ -134,7 +184,7 @@ def handle(path, body, ip):
         if path == "/api/huddle/check":
             return {"name": me["name"], "admin": bool(me["admin"])}
         if path == "/api/huddle/comment":
-            P, text = post(body.get("post")), re.sub(r"\n{3,}", "\n\n", str(body.get("text", "")).strip())
+            P, text = post(con, body.get("post")), re.sub(r"\n{3,}", "\n\n", str(body.get("text", "")).strip())
             if not P:
                 raise Refuse(404, "That post doesn't exist.")
             if not text or len(text) > MAX_TEXT:
@@ -146,8 +196,8 @@ def handle(path, body, ip):
             con.execute("insert into comments (post, name, at, text) values (?, ?, ?, ?)",
                         (body["post"], me["name"], now(), text))
         elif path == "/api/huddle/vote":
-            P = post(body.get("post"))
-            options = (P or {}).get("proposal", {}).get("options", [])
+            P = post(con, body.get("post"))
+            options = ((P or {}).get("proposal") or {}).get("options", [])
             if not isinstance(body.get("option"), int) or not 0 <= body["option"] < len(options):
                 raise Refuse(400, "That isn't one of the options.")
             con.execute("insert into votes values (?, ?, ?, ?) on conflict(post, name) do update "
@@ -158,6 +208,15 @@ def handle(path, body, ip):
             if not c or (c["name"] != me["name"] and not me["admin"]):
                 raise Refuse(403, "You can only remove your own comments.")
             con.execute("update comments set hidden = 1 where id = ?", (body["id"],))
+        elif path in ("/api/huddle/post", "/api/huddle/unpost"):
+            if not me["admin"]:
+                raise Refuse(403, "Only admins can post.")
+            if path.endswith("/post"):
+                write_post(con, me, body)
+            elif not str(body.get("id", "")).startswith("p") or not post(con, body["id"]):
+                raise Refuse(404, "That post can't be removed here.")
+            else:
+                con.execute("update posts set hidden = 1 where id = ?", (int(body["id"][1:]),))
         elif path == "/api/huddle/reissue":
             if not me["admin"]:
                 raise Refuse(403, "Only admins can issue codes.")
@@ -199,7 +258,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         size = int(self.headers.get("Content-Length") or 0)
-        if not self.path.startswith("/api/huddle/") or size > 8000:
+        if not self.path.startswith("/api/huddle/") or size > 30000:
             return self.reply(400, {"error": "Bad request."})
         try:
             body = json.loads(self.rfile.read(size) or b"{}")

@@ -319,6 +319,23 @@ form.reply .row { display: flex; justify-content: flex-end; }
 .code-out { font-size: 16px; }
 button.link { margin-left: auto; font: 500 12px var(--body); color: var(--fg3); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
 button.link:hover { color: var(--loss); }
+.post-admin { display: flex; gap: 14px; }
+.post-admin button.link { margin-left: 0; }
+#huddle .prose p { white-space: pre-line; }
+.composer { max-width: 760px; }
+form.compose { display: flex; flex-direction: column; gap: 12px; }
+form.compose label { display: flex; flex-direction: column; gap: 4px; font: 600 14px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--fg2); }
+form.compose label .vs, form.compose legend .vs { font: 400 12px var(--body); letter-spacing: 0; text-transform: none; }
+form.compose input, form.compose select, form.compose textarea { font: 15px var(--body); letter-spacing: 0; text-transform: none; color: var(--fg); background: var(--bg);
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: 4px; width: 100%; box-sizing: border-box; }
+form.compose textarea { resize: vertical; }
+form.compose :is(input, select, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+form.compose .two { display: flex; flex-wrap: wrap; gap: 12px; }
+form.compose .two .grow { flex: 1 1 260px; }
+form.compose fieldset { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; margin: 0; }
+form.compose legend { font: 600 14px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); padding: 0 4px; }
+form.compose .row { display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
+form.compose .row button.link { margin-left: 0; }
 .pick label { font: 600 14px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--fg2); }
 footer { color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 a.jump { font: 600 17px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; text-decoration: none; margin-left: auto; }
@@ -803,6 +820,20 @@ document.getElementById("pin-cancel").addEventListener("click", () => document.g
 // which this browser remembers.
 const HUDDLE_ME = "apfn-huddle-me";
 let huddle = null, huddleOffline = false, huddleMe = null;  // huddleMe: { name, code, admin }
+// Posts admins write on the tab (from the server), the post being edited, and the unsent form.
+let huddleArticles = [], huddleEditing = null, huddleDraft = null;
+const HUDDLE_TAGS = ["Announcement", "Proposal", "How it works", "Rules", "Poll", "Trash talk"];
+// A post written on the tab is plain text: blank lines split paragraphs, a line starting "#" is a
+// heading, and runs of lines starting "- " or "1. " become lists.
+const textBlocks = text => (text || "").split(/\n\s*\n/).flatMap(chunk => {
+  const lines = chunk.split("\n").map(l => l.trim()).filter(Boolean), out = [];
+  if (lines[0]?.startsWith("#")) out.push({ h: lines.shift().replace(/^#+\s*/, "") });
+  if (!lines.length) return out;
+  if (lines.every(l => /^[-*•] /.test(l))) out.push({ ul: lines.map(l => l.replace(/^[-*•] /, "")) });
+  else if (lines.every(l => /^\d+[.)] /.test(l))) out.push({ ol: lines.map(l => l.replace(/^\d+[.)] /, "")) });
+  else out.push({ p: lines.join("\n") });
+  return out;
+});
 try { huddleMe = JSON.parse(localStorage.getItem(HUDDLE_ME)); } catch (_) {}
 async function huddleCall(path, body) {
   const opts = body ? { method: "POST", headers: { "Content-Type": "application/json" },
@@ -814,13 +845,18 @@ async function huddleCall(path, body) {
   return out;
 }
 async function huddleLoad() {
-  try { huddle = (await huddleCall("")).posts; huddleOffline = false; } catch (_) { huddleOffline = true; }
+  try { const out = await huddleCall(""); huddle = out.posts; huddleArticles = out.articles || []; huddleOffline = false; }
+  catch (_) { huddleOffline = true; }
   renderHuddle();
 }
 // Run an action; on success redraw with the server's answer, on failure show why next to the control.
 async function huddleDo(errEl, path, body, after) {
   errEl.textContent = "";
-  try { const out = await huddleCall(path, body); if (out.posts) huddle = out.posts; after?.(out); renderHuddle(); }
+  try {
+    const out = await huddleCall(path, body);
+    if (out.posts) { huddle = out.posts; huddleArticles = out.articles || []; }
+    after?.(out); renderHuddle();
+  }
   catch (e) { errEl.textContent = e.message; }
 }
 
@@ -831,6 +867,26 @@ function renderHuddle() {
   const stamp = s => new Date(s).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   const block = b => b.h ? `<h3>${esc(b.h)}</h3>` : b.p ? `<p>${boldNames(esc(b.p))}</p>`
     : `<${b.ol ? "ol" : "ul"}>${(b.ol || b.ul).map(x => `<li>${boldNames(esc(x))}</li>`).join("")}</${b.ol ? "ol" : "ul"}>`;
+  // Admins write posts here. The form keeps what's typed (huddleDraft) through redraws until it's sent.
+  const composer = () => {
+    const d = huddleDraft || {}, val = k => esc(d[k] || "");
+    return `<details class="season composer" id="huddle-compose"${huddleEditing || huddleDraft ? " open" : ""}><summary>${huddleEditing ? "Admin: edit post" : "Admin: new post"}</summary><div>
+      <form id="huddle-post" class="compose">
+        <div class="two"><label>Type<select name="tag">${HUDDLE_TAGS.map(t => `<option${t === (d.tag || HUDDLE_TAGS[0]) ? " selected" : ""}>${t}</option>`).join("")}</select></label>
+          <label class="grow">Title<input name="title" maxlength="120" required value="${val("title")}"></label></div>
+        <label>Summary <span class="vs">optional, shown first in larger type</span><textarea name="summary" rows="2" maxlength="500">${val("summary")}</textarea></label>
+        <label>Post<textarea name="body" rows="9" maxlength="10000">${val("body")}</textarea>
+          <span class="vs">Leave a blank line between paragraphs. Start a line with # for a heading, - for a bullet, or 1. for a numbered list.</span></label>
+        <fieldset><legend>League vote <span class="vs">optional</span></legend>
+          <label>Question<input name="question" maxlength="200" value="${val("question")}"></label>
+          <label>Note under the question <span class="vs">optional</span><input name="detail" maxlength="300" value="${val("detail")}"></label>
+          <label>Options <span class="vs">one per line, 2 to 6${huddleEditing && Object.keys((huddle[huddleEditing] || {}).votes || {}).length ? "; locked now that people have voted" : ""}</span><textarea name="options" rows="4">${val("options")}</textarea></label>
+        </fieldset>
+        <p class="err" role="alert"></p>
+        <div class="row">${huddleEditing || huddleDraft ? `<button type="button" class="link" id="huddle-cancel">${huddleEditing ? "Cancel editing" : "Discard draft"}</button>` : ""}
+          <button type="submit" class="pdf">${huddleEditing ? "Save changes" : "Post it"}</button></div>
+      </form></div></details>`;
+  };
   const status = huddleOffline ? `<p class="note"><span class="chip warn">Offline</span> Comments and votes can't be reached right now. The posts are all here.</p>`
     : !huddle ? `<p class="note">Loading comments and votes…</p>` : "";
   const signin = me
@@ -840,7 +896,7 @@ function renderHuddle() {
         <form class="pick" id="huddle-reissue"><label class="sr-only" for="reissue-who">Manager</label>
           <select id="reissue-who">${managers.map(m => `<option>${esc(m)}</option>`).join("")}</select>
           <button type="submit" class="pdf">Issue new code</button><p class="err" role="alert"></p></form>
-        <p class="code-out" id="reissue-out" aria-live="polite"></p></div></details>` : ""}`
+        <p class="code-out" id="reissue-out" aria-live="polite"></p></div></details>${live ? composer() : ""}` : ""}`
     : `<form class="pick signin" id="huddle-in">
         <label for="huddle-name">Sign in</label>
         <select id="huddle-name" required><option value="">Your Sleeper name</option>${managers.map(m => `<option>${esc(m)}</option>`).join("")}</select>
@@ -864,8 +920,9 @@ function renderHuddle() {
     const comments = st.comments.map(c => `<li><div class="c-head"><b class="un">${esc(c.who)}</b><span class="vs">${esc(stamp(c.at))}</span>
         ${me && (c.who === me || huddleMe.admin) ? `<button type="button" class="link" data-remove="${c.id}">Remove</button>` : ""}</div><p>${esc(c.text)}</p></li>`).join("");
     return `<article class="story post">
-      <div class="kicker"><div class="txt"><span class="eyebrow">${esc(P.tag)} · ${esc(day(P.date + "T12:00"))} · posted by ${esc(P.author)}</span><h2>${esc(P.title)}</h2></div></div>
-      <p class="lede">${boldNames(esc(P.summary))}</p>
+      <div class="kicker"><div class="txt"><span class="eyebrow">${esc(P.tag)} · ${esc(day(P.date.length > 10 ? P.date : P.date + "T12:00"))} · posted by ${esc(P.author)}</span><h2>${esc(P.title)}</h2>
+        ${huddleMe?.admin && P.tab && live ? `<div class="post-admin"><button type="button" class="link" data-edit="${esc(P.id)}">Edit</button><button type="button" class="link" data-unpost="${esc(P.id)}">Remove post</button></div>` : ""}</div></div>
+      ${P.summary ? `<p class="lede">${boldNames(esc(P.summary))}</p>` : ""}
       <div class="prose">${P.blocks.map(block).join("")}</div>
       ${vote}
       <div class="thread" data-post="${esc(P.id)}"><h3>${live ? `${st.comments.length} comment${st.comments.length === 1 ? "" : "s"}` : "Comments"}</h3>
@@ -879,7 +936,32 @@ function renderHuddle() {
     </article>`;
   };
   el.innerHTML = `<div class="block"><p class="note">League business: how things work, proposed changes and votes. Read the post, vote, and say your piece underneath.</p>${signin}</div>
-    ${status}${(D.huddle || []).map(post).join("") || `<p class="note">Nothing posted yet.</p>`}`;
+    ${status}${[...huddleArticles.map(a => ({ ...a, blocks: textBlocks(a.body), tab: true })), ...(D.huddle || [])]
+      .sort((a, b) => b.date.localeCompare(a.date)).map(post).join("") || `<p class="note">Nothing posted yet.</p>`}`;
+
+  const form = el.querySelector("#huddle-post");
+  const fields = () => Object.fromEntries(new FormData(form));
+  form?.addEventListener("input", () => { huddleDraft = fields(); });
+  form?.addEventListener("submit", e => {
+    e.preventDefault();
+    const f = fields(), options = f.options.split("\n").map(s => s.trim()).filter(Boolean);
+    huddleDo(errOf(form), "/post", { ...f, options, id: huddleEditing ?? undefined }, () => { huddleEditing = null; huddleDraft = null; });
+  });
+  el.querySelector("#huddle-cancel")?.addEventListener("click", () => {
+    if (!huddleEditing && !confirm("Discard this draft?")) return;
+    huddleEditing = null; huddleDraft = null; renderHuddle();
+  });
+  el.querySelectorAll("button[data-edit]").forEach(b => b.addEventListener("click", () => {
+    const a = huddleArticles.find(x => x.id === b.dataset.edit);
+    huddleEditing = a.id;
+    huddleDraft = { tag: a.tag, title: a.title, summary: a.summary, body: a.body, question: a.proposal?.question || "",
+                    detail: a.proposal?.detail || "", options: (a.proposal?.options || []).join("\n") };
+    renderHuddle();
+    document.getElementById("huddle-compose").scrollIntoView({ block: "start" });
+  }));
+  el.querySelectorAll("button[data-unpost]").forEach(b => b.addEventListener("click", () => {
+    if (confirm("Remove this post, with its comments and vote?")) huddleDo(b.closest("article").querySelector(".thread .err"), "/unpost", { id: b.dataset.unpost });
+  }));
 
   const errOf = node => node.closest("form, .poll, .thread").querySelector(".err");
   el.querySelector("#huddle-in")?.addEventListener("submit", e => {
