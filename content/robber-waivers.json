@@ -135,6 +135,33 @@
         "queens22",
         "Dfiasco0"
       ]
+    },
+    "8": {
+      "source": "automatic",
+      "before": [
+        "thatguyPegleg",
+        "adamgum",
+        "Juravieal",
+        "kbartelt07",
+        "ArmedRodgery21",
+        "Dfiasco0",
+        "Ghaztyz",
+        "queens22",
+        "vpettijohnjr",
+        "cartercole"
+      ],
+      "after": [
+        "thatguyPegleg",
+        "adamgum",
+        "ArmedRodgery21",
+        "vpettijohnjr",
+        "cartercole",
+        "Juravieal",
+        "kbartelt07",
+        "Dfiasco0",
+        "Ghaztyz",
+        "queens22"
+      ]
     }
   }
 }
