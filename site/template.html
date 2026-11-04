@@ -61,6 +61,7 @@ section.panel { display: flex; flex-direction: column; gap: 24px; }
 .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tile .k { font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); }
 .tile .v { font: 700 26px var(--display); line-height: 1.1; overflow-wrap: anywhere; }
+.tile .v.tn { color: var(--accent); }
 .tile .s { color: var(--fg2); font-size: 13px; }
 
 .scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
@@ -72,7 +73,11 @@ td.r, th.r { text-align: right; }
 td.rank { font: 700 20px var(--display); color: var(--fg2); width: 1%; }
 tr.cut td { border-bottom: 2px dashed var(--fg3); }
 .team { display: flex; flex-direction: column; min-width: 170px; white-space: normal; }
-.team b { font-weight: 600; overflow-wrap: break-word; }
+.team b { font-weight: 700; color: var(--accent); overflow-wrap: break-word; }
+/* Team name is the focus (bold gold), the Sleeper username sits under it in grey. */
+.tn { font-weight: 700; color: var(--accent); }
+.cf { font-weight: 400; color: var(--accent); }
+.mgr { display: block; color: var(--fg3); font-size: 12px; }
 .team span { color: var(--fg3); font-size: 12px; }
 .chip { display: inline-block; font: 600 12px var(--display); letter-spacing: .08em; text-transform: uppercase; padding: 1px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--fg2); }
 .chip.up { background: var(--win-soft); border-color: transparent; color: var(--fg); }
@@ -114,7 +119,7 @@ article.story .prose b.un, b.un { color: var(--accent); }
 .finals th.lr, .finals td.lr { width: 1%; text-align: center; font-weight: 700; }
 .finals th.cr, .finals td.cr { width: 1%; text-align: center; font-style: italic; }
 .finals td.lr { font-size: 16px; } .finals td.cr { color: var(--fg2); }
-.finals td.who { white-space: normal; } .finals td.who span { display: block; color: var(--fg3); font-size: 12px; }
+.finals td.who { white-space: normal; }
 .finals td.pts { text-align: right; font-size: 15px; } .finals td.pts.won { font-weight: 700; } .finals td.pts.lost { color: var(--fg2); }
 .finals td.top { color: var(--fg3); font-size: 12px; white-space: normal; }
 .finals tbody + tbody tr:first-child td { border-top: 8px solid var(--bg); }
@@ -125,6 +130,30 @@ article.story .prose b.un, b.un { color: var(--accent); }
 .finals caption { caption-side: bottom; text-align: left; padding: 6px 2px 0; color: var(--fg3); font-size: 12px; }
 @media (max-width: 560px) { .finals td.top { display: none; } .finals th.top { display: none; } }
 article.story .game { display: flex; flex-direction: column; gap: 10px; }
+/* Starting lineups under each Preview game */
+.finals tr.lu-row td { padding: 0; white-space: normal; }
+details.lu > summary { cursor: pointer; padding: 6px 10px; font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+details.lu > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.lu-r { display: grid; grid-template-columns: minmax(0, 1fr) 3.6em 3.4em 3.6em minmax(0, 1fr); align-items: center; gap: 0 4px; padding: 6px 10px; border-top: 1px solid var(--line); }
+.lu-r.h { background: var(--sunken); font: 600 12px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--fg3); }
+.lu-r.h .tn { font: 700 14px var(--display); letter-spacing: .03em; text-transform: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lu-r.t { font-weight: 700; }
+.lu-r .pl { min-width: 0; display: flex; flex-direction: column; }
+.lu-r .pl.r { text-align: right; align-items: flex-end; }
+.lu-r .pl b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.lu-r .pl > span { color: var(--fg3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.lu-r .pj { text-align: right; font-variant-numeric: tabular-nums; color: var(--fg2); }
+.lu-r .pj.r { text-align: left; }
+.lu-r .pj.hi { color: var(--fg); font-weight: 700; }
+.lu-r .slot { justify-self: center; font: 700 12px var(--display); letter-spacing: .06em; padding: 1px 5px; border-radius: 3px; background: var(--sunken); color: var(--fg2); }
+.lu-r .flag, .lu-r .pl .flag { color: var(--loss); font-weight: 700; }
+.lu-r.h .tn.r { text-align: right; }
+.lu-r .ab { display: none; }
+.lu-note { padding: 6px 10px 8px; color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); }
+@media (max-width: 560px) {
+  .lu-r { grid-template-columns: minmax(0, 1fr) 3em 2.9em 3em minmax(0, 1fr); padding: 6px 6px; gap: 0 2px; }
+  .lu-r .fn { display: none; } .lu-r .ab { display: inline; }
+}
 article.story .prose.outro { padding-top: 16px; border-top: 1px dashed var(--line); }
 /* Fixed column widths so the score columns line up from one game's table to the next */
 article.story .game .finals table { table-layout: fixed; }
@@ -246,9 +275,8 @@ article.story .kicker .crest-sm { width: 64px; height: auto; flex: 0 0 auto; fil
 article.story .kicker .txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 /* Guillotine League: the chop line */
 .chop tr.chopped td { background: var(--loss-soft); }
-.chop tr.gone td { color: var(--fg3); } .chop tr.gone b.un { color: var(--fg3); }
+.chop tr.gone td, .chop tr.gone :is(.tn, .cf) { color: var(--fg3); }
 .chop tr.cut td { border-top: 3px solid var(--loss); }
-.chop td.who span { display: block; color: var(--fg3); font-size: 12px; }
 .chop td.who { white-space: normal; }
 table.chop caption { caption-side: bottom; text-align: left; padding: 6px 2px 0; color: var(--fg3); font-size: 12px; }
 .finals .chop-bar { background: linear-gradient(180deg, #4a4f57, #2a2d33 55%, #16181c); color: #f0907f; padding: 4px 10px;
@@ -361,7 +389,7 @@ a.jump:hover { background: var(--accent-soft); }
     <button role="tab" id="tab-recap" data-tab="recap">Recap</button>
     <button role="tab" id="tab-preview" data-tab="preview">Preview</button>
     <button role="tab" id="tab-power" data-tab="power">Power rankings</button>
-    <button role="tab" id="tab-conferences" data-tab="conferences">Conferences</button>
+    <button role="tab" id="tab-standings" data-tab="standings">Standings</button>
     <button role="tab" id="tab-robber" data-tab="robber">Robber League</button>
     <button role="tab" id="tab-guillotine" data-tab="guillotine">Guillotine</button>
     <button role="tab" id="tab-records" data-tab="records">Record book</button>
@@ -373,7 +401,7 @@ a.jump:hover { background: var(--accent-soft); }
   <section class="panel" id="recap" role="tabpanel" aria-labelledby="tab-recap"></section>
   <section class="panel" id="preview" role="tabpanel" aria-labelledby="tab-preview" hidden></section>
   <section class="panel" id="power" role="tabpanel" aria-labelledby="tab-power" hidden></section>
-  <section class="panel" id="conferences" role="tabpanel" aria-labelledby="tab-conferences" hidden></section>
+  <section class="panel" id="standings" role="tabpanel" aria-labelledby="tab-standings" hidden></section>
   <section class="panel" id="robber" role="tabpanel" aria-labelledby="tab-robber" hidden></section>
   <section class="panel" id="guillotine" role="tabpanel" aria-labelledby="tab-guillotine" hidden></section>
   <section class="panel" id="records" role="tabpanel" aria-labelledby="tab-records" hidden></section>
@@ -403,6 +431,7 @@ const last = D.done[D.done.length - 1] || 0;
 
 const team = k => `<div class="team"><b>${esc(T[k].team)}</b><span>${esc(T[k].manager)}</span></div>`;
 const short = k => esc(T[k].manager);
+const teamWho = (k, conf) => `<b class="tn">${esc(T[k].team)}</b>${conf ? ` <span class="cf">· ${esc(T[k].conf)}</span>` : ""}<span class="mgr">${esc(T[k].manager)}</span>`;
 const rec = t => `${t.w}–${t.l}${t.t ? "–" + t.t : ""}`;
 const weekCells = t => [...t.weeks].reverse().map(x => `<span class="wk ${x.res}" title="Week ${x.week}: ${f2(x.pts)} to ${f2(x.opp_pts)} vs ${short(x.opp)}"><em>${x.res}</em>${f1(x.pts)}</span>`).join("");
 const luckChip = l => Math.abs(l) < 0.5 ? "" : ` <span class="chip ${l > 0 ? "up" : "down"}">${l > 0 ? "Lucky" : "Unlucky"}</span>`;
@@ -437,10 +466,10 @@ function gameScores(L, g) {
   const robber = L.robber;
   const win = g[0].pts >= g[1].pts ? 0 : 1;
   const row = (s, won) => `<tr><td class="lr">${s.lr ?? ""}</td>${robber ? "" : `<td class="cr">${s.cr ?? ""}</td>`}
-    <td class="who"><b class="un">${esc(T[s.team].manager)}</b><span>${esc(T[s.team].team)}</span></td>
+    <td class="who">${teamWho(s.team, L.name === "League")}</td>
     <td class="pts num ${won ? "won" : "lost"}">${f2(s.pts)}</td><td class="top">${esc(s.star)} ${f1(s.star_pts)}</td></tr>`;
   return `<div class="finals">${g[0].gotw ? `<div class="gotw-bar">★ Game of the week ★</div>` : g[0].spot ? `<div class="spot-bar">Conference spotlight</div>` : ""}<div class="scroll"><table>
-    <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">Score</th><th class="top">Top scorer</th></tr></thead>
+    <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Team</th><th class="r">Score</th><th class="top">Top scorer</th></tr></thead>
     <tbody>${row(g[0], win === 0)}${row(g[1], win === 1)}</tbody>
     <caption>${g[0].lr == null ? "No standings yet in week 1." : g[0].pre ? "Preseason <b>league rank</b> and <i>conference rank</i>, from last season's points." : robber ? "Robber League rank going into the week." : "<b>League rank</b> and <i>conference rank</i> going into the week."}</caption>
   </table></div></div>`;
@@ -466,16 +495,62 @@ function recapGames(L) {
     + (prose.outro ? `<div class="prose outro">${paras(prose.outro)}</div>` : "");
 }
 
-function matchupTable(games, kind) {
+function matchupTable(games, kind, lineups = true) {
   // kind: "league" (league record), "conference" (conference record), "robber" (one rank)
   const robber = kind === "robber", cols = robber ? 3 : 4;
   const row = s => `<tr><td class="lr">${s.lr ?? ""}</td>${robber ? "" : `<td class="cr">${s.cr ?? ""}</td>`}
-    <td class="who"><b class="un">${esc(T[s.key].manager)}</b><span>${esc(T[s.key].team)}${kind === "league" ? ` · ${esc(T[s.key].conf)}` : ""}</span></td>
+    <td class="who">${teamWho(s.key, kind === "league")}</td>
     <td class="pts num">${esc(kind === "conference" ? s.crec : s.lrec)}</td></tr>`;
   return `<div class="finals"><div class="scroll"><table>
-    <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Manager</th><th class="r">${kind === "conference" ? "Conf record" : "Record"}</th></tr></thead>
-    ${games.map(g => `<tbody>${g[0].gotw ? `<tr class="gotw-row"><td colspan="${cols}">★ Game of the week ★</td></tr>` : g[0].spot ? `<tr class="spot-row"><td colspan="${cols}">Conference spotlight</td></tr>` : ""}${row(g[0])}${row(g[1])}</tbody>`).join("")}
+    <thead><tr><th class="lr">${robber ? "Rank" : "League"}</th>${robber ? "" : `<th class="cr">Conf</th>`}<th>Team</th><th class="r">${kind === "conference" ? "Conf record" : "Record"}</th></tr></thead>
+    ${games.map(g => `<tbody>${g[0].gotw ? `<tr class="gotw-row"><td colspan="${cols}">★ Game of the week ★</td></tr>` : g[0].spot ? `<tr class="spot-row"><td colspan="${cols}">Conference spotlight</td></tr>` : ""}${row(g[0])}${row(g[1])}${lineups ? lineupRow(g, cols) : ""}</tbody>`).join("")}
   </table></div></div>`;
+}
+
+// ---- Starting lineups, side by side like Sleeper's matchup screen -------------------------------
+// Baked in at build time, then re-fetched from Sleeper whenever the Preview tab opens.
+const LU = D.preview.lineups;
+let luAsOf = null;
+const INJ = { Questionable: "Q", Doubtful: "D", Out: "O", IR: "IR", PUP: "PUP", Suspended: "SUS", Sus: "SUS", NA: "NA" };
+const SLOT = { SUPER_FLEX: "SF", REC_FLEX: "W/T", WRRB_FLEX: "W/R" };
+const abbr = (n, pos) => pos === "DEF" ? n.split(" ").slice(-1)[0] : n.replace(/^(\S)\S*\s+/, "$1. ");
+function luSide(key) {
+  const L = LU.leagues[key.split(":")[0]], ids = LU.starters[key] || [];
+  return L.slots.map((slot, i) => {
+    const pid = ids[i];
+    if (!pid || pid === "0") return { slot, empty: true, proj: 0 };
+    const p = LU.players[pid] || ["New pickup", "", "", ""];
+    return { slot, name: p[0], pos: p[1], nfl: p[2], inj: INJ[p[3]] || "", proj: L.proj[pid] ?? 0, opp: LU.opp[p[2]] };
+  });
+}
+function lineupHTML(ka, kb) {
+  const a = luSide(ka), b = luSide(kb), sum = xs => xs.reduce((t, x) => t + x.proj, 0);
+  const pl = (x, right) => x.empty ? `<div class="pl${right ? " r" : ""}"><b class="flag">Empty</b><span>&nbsp;</span></div>`
+    : `<div class="pl${right ? " r" : ""}"><b><span class="fn">${esc(x.name)}</span><span class="ab">${esc(abbr(x.name, x.pos))}</span></b>`
+      + `<span>${esc(x.pos)}${x.nfl && x.pos !== "DEF" ? " · " + esc(x.nfl) : ""} ${x.opp ? esc(x.opp) : x.nfl ? '<b class="flag">BYE</b>' : ""}${x.inj ? ` <b class="flag">${x.inj}</b>` : ""}</span></div>`;
+  const pj = (x, y, right) => `<span class="pj${right ? " r" : ""}${x.proj > y.proj ? " hi" : ""}">${x.empty ? "–" : f1(x.proj)}</span>`;
+  const ta = sum(a), tb = sum(b), time = luAsOf ? luAsOf.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
+  return `<div class="lu-r h"><span class="tn">${esc(T[ka].team)}</span><span class="pj">Proj</span><span></span><span class="pj r">Proj</span><span class="tn r">${esc(T[kb].team)}</span></div>`
+    + a.map((x, i) => `<div class="lu-r">${pl(x)}${pj(x, b[i])}<span class="slot">${esc(SLOT[x.slot] || x.slot)}</span>${pj(b[i], x, true)}${pl(b[i], true)}</div>`).join("")
+    + `<div class="lu-r t"><span>Total</span><span class="pj${ta > tb ? " hi" : ""}">${f1(ta)}</span><span></span><span class="pj r${tb > ta ? " hi" : ""}">${f1(tb)}</span><span class="pl r">Total</span></div>`
+    + `<p class="lu-note">Starters as set on Sleeper${time ? `, checked at ${time}` : " when the site was last built"}. Projections are Sleeper's, in this league's scoring.</p>`;
+}
+const lineupRow = (g, cols) => LU && LU.starters[g[0].key] && LU.starters[g[1].key]
+  ? `<tr class="lu-row"><td colspan="${cols}"><details class="lu"${g[0].gotw ? " open" : ""}><summary>Starting lineups</summary><div class="lu-body" data-a="${g[0].key}" data-b="${g[1].key}">${lineupHTML(g[0].key, g[1].key)}</div></details></td></tr>` : "";
+async function luRefresh() {
+  if (!LU || luRefresh.busy || (luAsOf && Date.now() - luAsOf < 60000)) return;
+  luRefresh.busy = true;
+  try {
+    const got = await Promise.all(Object.keys(LU.leagues).map(async lid => {
+      const r = await fetch(`https://api.sleeper.app/v1/league/${lid}/matchups/${LU.week}`);
+      if (!r.ok) throw new Error(r.status);
+      return [lid, await r.json()];
+    }));
+    got.forEach(([lid, ms]) => ms.forEach(m => { if (m.starters) LU.starters[`${lid}:${m.roster_id}`] = m.starters; }));
+    luAsOf = new Date();
+    document.querySelectorAll(".lu-body").forEach(el => el.innerHTML = lineupHTML(el.dataset.a, el.dataset.b));
+  } catch (_) { /* Sleeper unreachable: keep the lineups from the build */ }
+  finally { luRefresh.busy = false; }
 }
 
 function renderPreview() {
@@ -487,13 +562,13 @@ function renderPreview() {
       P.league_week === P.week
         ? "Cross-conference games that count in the combined league table. These aren't on Sleeper: your score this week counts in both your conference game and this one."
         : `Each team plays one extra game a week against the other conference from week ${P.league_week} to 14. These are week ${P.league_week}'s games, ranked by today's standings.`)}
-      ${matchupTable(P.league, "league")}</article>` : "";
+      ${matchupTable(P.league, "league", P.league_week === P.week)}</article>` : "";
   // The conference holding the game of the week goes first; the other opens with its Spotlight.
   const hasGotw = games => games.some(g => g[0].gotw);
   const confs = Object.entries(P.conferences).sort(([, x], [, y]) => hasGotw(y) - hasGotw(x)).map(([name, games]) => `<article class="story">${head(shield(name), `${esc(name)} Conference · week ${P.week}`, `${esc(name)} Conference`, "")}${matchupTable(games, "conference")}</article>`).join("");
   const robber = P.robber.length ? `<article class="story">${head("", `Robber League · week ${P.week}`, "Robber League", "Winners steal a player from the team they beat.")}${matchupTable(P.robber, "robber")}</article>` : "";
   const g = G && !G.final && G.block.length ? `<article class="story">${head("", `Guillotine League · week ${P.week}`, "On the block", `${G.alive} teams left. The lowest season total after this week is chopped.`)}
-    <div class="finals"><div class="scroll"><table class="chop"><thead><tr><th class="lr">#</th><th>Manager</th><th class="r">Season</th><th class="r">Above the line</th></tr></thead>
+    <div class="finals"><div class="scroll"><table class="chop"><thead><tr><th class="lr">#</th><th>Team</th><th class="r">Season</th><th class="r">Above the line</th></tr></thead>
     <tbody>${G.block.slice(0, 5).map((b, i) => `<tr class="${i === 0 ? "chopped" : ""}"><td class="lr">${G.alive - i}</td>${gWho(b.team)}<td class="r num"><b>${f2(b.total)}</b></td><td class="r num">${i === 0 ? chip("down", "On the block") : "+" + f2(b.cushion)}</td></tr>`).join("")}</tbody>
     <caption>The bottom five by season points. Full table in the Guillotine tab.</caption></table></div></div></article>` : "";
   // League play leads in the weeks it is played; before it starts, the look ahead goes last.
@@ -547,10 +622,10 @@ function renderPower() {
   const lead = D.cross[a] >= D.cross[b] ? a : b, trail = lead === a ? b : a;
   document.getElementById("power").innerHTML = `
     <div class="tiles">
-      <div class="tile"><span class="k">Number one</span><span class="v">${esc(ts[0].team)}</span><span class="s">${esc(ts[0].manager)} · ${esc(ts[0].conf)} · all-play ${ts[0].ap_w}–${ts[0].ap_l}</span></div>
+      <div class="tile"><span class="k">Number one</span><span class="v tn">${esc(ts[0].team)}</span><span class="s">${esc(ts[0].manager)} · ${esc(ts[0].conf)} · all-play ${ts[0].ap_w}–${ts[0].ap_l}</span></div>
       <div class="tile"><span class="k">Conference vs conference</span><span class="v">${esc(lead)} ${D.cross[lead]}–${D.cross[trail]}</span><span class="s">Every ${esc(a)} score against every ${esc(b)} score, each week. Average ${f1(D.conf_ppg[a])} vs ${f1(D.conf_ppg[b])} a game.</span></div>
-      <div class="tile"><span class="k">Luckiest</span><span class="v">${esc(lucky.team)}</span><span class="s">${esc(lucky.manager)} · ${rec(lucky)} in conference with ${f2(lucky.xw)} expected wins</span></div>
-      <div class="tile"><span class="k">Unluckiest</span><span class="v">${esc(unlucky.team)}</span><span class="s">${esc(unlucky.manager)} · ${rec(unlucky)} in conference with ${f2(unlucky.xw)} expected wins</span></div>
+      <div class="tile"><span class="k">Luckiest</span><span class="v tn">${esc(lucky.team)}</span><span class="s">${esc(lucky.manager)} · ${rec(lucky)} in conference with ${f2(lucky.xw)} expected wins</span></div>
+      <div class="tile"><span class="k">Unluckiest</span><span class="v tn">${esc(unlucky.team)}</span><span class="s">${esc(unlucky.manager)} · ${rec(unlucky)} in conference with ${f2(unlucky.xw)} expected wins</span></div>
     </div>
     <div class="block">
       <h2>All 20 teams, one table</h2>
@@ -564,7 +639,7 @@ function standings(teams, cut) {
   return `<div class="scroll"><table><thead><tr><th>#</th><th>Team</th><th>Record</th><th class="r">PF</th><th class="r">PA</th><th class="r">Power</th></tr></thead>
     <tbody>${rows.map((t, i) => `<tr class="${i === cut - 1 ? "cut" : ""}"><td class="rank">${i + 1}</td><td>${team(t.key)}</td><td>${rec(t)}</td><td class="r">${f1(t.pf)}</td><td class="r">${f1(t.pa)}</td><td class="r">#${t.rank}</td></tr>`).join("")}</tbody></table></div>`;
 }
-const games = list => `<div class="list"><ul class="plain">${list.map(([x, y]) => `<li><div><b>${esc(T[x].team)}</b> <span class="vs">#${T[x].rank} · ${rec(T[x])}</span></div><div style="text-align:right"><b>${esc(T[y].team)}</b> <span class="vs">#${T[y].rank} · ${rec(T[y])}</span></div></li>`).join("")}</ul></div>`;
+const games = list => `<div class="list"><ul class="plain">${list.map(([x, y]) => `<li><div><b class="tn">${esc(T[x].team)}</b> <span class="vs">#${T[x].rank} · ${rec(T[x])}</span></div><div style="text-align:right"><b class="tn">${esc(T[y].team)}</b> <span class="vs">#${T[y].rank} · ${rec(T[y])}</span></div></li>`).join("")}</ul></div>`;
 
 // ---- league table, league games and brackets ---------------------------------------------------
 function bracketView(rounds, who) {
@@ -576,13 +651,13 @@ function bracketView(rounds, who) {
 }
 function leagueBlock() {
   const L = D.league, rec = r => `${r.w}–${r.l}${r.t ? "–" + r.t : ""}`;
-  const who = k => `${esc(T[k].team)} <span class="vs">${esc(T[k].manager)}</span>`;
+  const who = k => `<span class="tn">${esc(T[k].team)}</span> <span class="vs">${esc(T[k].manager)}</span>`;
   const table = `<div class="scroll"><table><thead><tr><th>#</th><th>Team</th><th>Conf</th><th>League record</th><th class="r">PF</th><th>Conference record</th></tr></thead>
     <tbody>${L.table.map(t => `<tr class="${t.rank === 8 ? "cut" : t.rank === 16 ? "cut16" : ""}"><td class="rank">${t.rank}</td><td>${team(t.key)}</td><td><span class="chip">${esc(T[t.key].conf)}</span></td><td>${rec(t)}</td><td class="r">${f1(t.pf)}</td><td>${rec(t.conf_record)}</td></tr>`).join("")}</tbody></table></div>`;
   const G = L.week_games;
-  const games = G.games.length ? `<div class="block"><h3>Week ${G.week} games, by importance</h3><p class="note">Ranked by the two teams' combined league rank, lowest first${L.has_schedule ? "; cross-conference league games come first in weeks 5–14" : ""}.</p><div class="list"><ul class="plain">${G.games.map((g, i) => `<li class="${i === 0 ? "gotw" : ""}"><div>${i === 0 ? '<span class="chip loot">Game of the week</span> ' : ""}<span class="chip">${esc(g.kind)}</span><br><b>#${g.a_rank} ${esc(T[g.a].team)}</b> v <b>#${g.b_rank} ${esc(T[g.b].team)}</b><br><span class="vs">${esc(T[g.a].manager)} v ${esc(T[g.b].manager)}</span></div><div class="vs num">${g.a_rank + g.b_rank}</div></li>`).join("")}</ul></div></div>` : "";
+  const games = G.games.length ? `<div class="block"><h3>Week ${G.week} games, by importance</h3><p class="note">Ranked by the two teams' combined league rank, lowest first${L.has_schedule ? "; cross-conference league games come first in weeks 5–14" : ""}.</p><div class="list"><ul class="plain">${G.games.map((g, i) => `<li class="${i === 0 ? "gotw" : ""}"><div>${i === 0 ? '<span class="chip loot">Game of the week</span> ' : ""}<span class="chip">${esc(g.kind)}</span><br>#${g.a_rank} <b class="tn">${esc(T[g.a].team)}</b> v #${g.b_rank} <b class="tn">${esc(T[g.b].team)}</b><br><span class="vs">${esc(T[g.a].manager)} v ${esc(T[g.b].manager)}</span></div><div class="vs num">${g.a_rank + g.b_rank}</div></li>`).join("")}</ul></div></div>` : "";
   const brackets = L.title.length ? `<div class="block"><div class="banner-ribbon">Playoffs</div>${bracketView(L.title, who)}</div><div class="block"><div class="silver-label">Consolation</div>${bracketView(L.consolation, who)}</div>` : "";
-  const champ = L.champion ? `<div class="tile"><span class="k">${D.season} league champion</span><span class="v">${esc(T[L.champion].team)}</span><span class="s">${esc(T[L.champion].manager)}</span></div>` : "";
+  const champ = L.champion ? `<div class="tile"><span class="k">${D.season} league champion</span><span class="v tn">${esc(T[L.champion].team)}</span><span class="s">${esc(T[L.champion].manager)}</span></div>` : "";
   return `<div class="block"><h2>League table</h2>${champ}
     <p class="note">All 20 teams together, by wins then points for${L.has_schedule ? ", counting the cross-conference league games from week 5" : ""}. After week 14 the top 8 (above the dashed line) play for the league title and 9–16 (above the dotted line) play the consolation bracket, in weeks 15–17.${L.provisional ? " Seeds are as things stand." : ""}</p>
     ${table}</div>${games}${brackets}`;
@@ -596,7 +671,7 @@ function pastTournaments() {
 }
 
 function renderConferences() {
-  document.getElementById("conferences").innerHTML = leagueBlock() + `
+  document.getElementById("standings").innerHTML = leagueBlock() + `
     <div class="cols">${D.conferences.map(c => `<div class="block">
       <h2>${esc(c)} Conference</h2>
       ${standings(D.teams.filter(t => t.conf === c), D.playoff_teams)}
@@ -606,7 +681,7 @@ function renderConferences() {
     <p class="note">The dashed line marks the ${D.playoff_teams} playoff places in each conference. Power is the team's rank among all 20.</p>
     <div class="block">
       <h2>Week ${last} awards</h2>
-      <div class="list"><ul class="plain">${D.awards.map(a => `<li><div><span class="muted">${esc(a.label)}</span><br><b>${esc(T[a.team].team)}</b> <span class="vs">${esc(T[a.team].manager)} · ${esc(T[a.team].conf)}${a.vs ? " · vs " + short(a.vs) : ""}</span></div><div class="num"><b>${esc(a.value)}</b></div></li>`).join("")}</ul></div>
+      <div class="list"><ul class="plain">${D.awards.map(a => `<li><div><span class="muted">${esc(a.label)}</span><br><b class="tn">${esc(T[a.team].team)}</b> <span class="vs">${esc(T[a.team].manager)} · ${esc(T[a.team].conf)}${a.vs ? " · vs " + short(a.vs) : ""}</span></div><div class="num"><b>${esc(a.value)}</b></div></li>`).join("")}</ul></div>
     </div>`;
 }
 
@@ -655,7 +730,7 @@ function renderRobber() {
 
 // ---- Guillotine League: lowest season points total is chopped each week; no head-to-head ----
 const G = D.guillotine;
-const gWho = k => `<td class="who"><b class="un">${esc(T[k].manager)}</b><span>${esc(T[k].team)}</span></td>`;
+const gWho = k => `<td class="who">${teamWho(k)}</td>`;
 const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
 
 // One finished week, in the league's own format: every team by season points with FAAB at the chop,
@@ -666,7 +741,7 @@ function chopTable(w) {
     <td class="r num">$${r.faab.toLocaleString()}${r.penalty ? " " + chip("down", `−$${G.penalty} penalty`) : ""}</td>
     <td class="r">${r.chopped ? chip("down", "Chopped") : r.out ? `<span class="vs">Out wk ${r.out}</span>` : ""}</td></tr>`;
   return `<div class="finals"><div class="chop-bar">✂ ${esc(T[w.chopped].manager)} chopped · ${w.teams - 1} left</div><div class="scroll"><table class="chop">
-    <thead><tr><th class="lr">Pos</th><th>Player</th><th class="r">Points</th><th class="r">FAAB remaining</th><th></th></tr></thead>
+    <thead><tr><th class="lr">Pos</th><th>Team</th><th class="r">Points</th><th class="r">FAAB remaining</th><th></th></tr></thead>
     <tbody>${w.table.map(row).join("")}</tbody>
     <caption>Season points after week ${w.week}. FAAB as it stood at the chop, before that week's waivers. ${esc(T[w.chopped].manager)} missed by ${f2(w.cushion)}; ${esc(T[w.penalty].manager)} had the week's lowest score among teams that carry on and pays $${G.penalty}.</caption>
   </table></div></div>
@@ -680,7 +755,7 @@ function renderGuillotine() {
   const champs = G.champions.filter(c => c.champion);
   const holder = champs[champs.length - 1];
   const block = `<div class="scroll"><table class="chop">
-    <thead><tr><th class="lr">#</th><th>Manager</th><th class="r">Season</th><th class="r">Last week</th><th class="r">Above the line</th><th class="r">FAAB</th></tr></thead>
+    <thead><tr><th class="lr">#</th><th>Team</th><th class="r">Season</th><th class="r">Last week</th><th class="r">Above the line</th><th class="r">FAAB</th></tr></thead>
     <tbody>${[...G.block].reverse().map((b, i, a) => `<tr class="${i === a.length - 1 ? "chopped cut" : ""}"><td class="lr">${i + 1}</td>${gWho(b.team)}
       <td class="r num"><b>${f2(b.total)}</b></td><td class="r num">${f2(b.last)}</td>
       <td class="r num">${i === a.length - 1 ? chip("down", "On the block") : "+" + f2(b.cushion)}</td>
@@ -695,8 +770,8 @@ function renderGuillotine() {
     <p class="note"><b>House rules.</b> Head-to-head results do not count; season points are everything. After each week the team with the lowest season points total is chopped and its roster goes to free agency ahead of waivers. The week's lowest score among teams that carry on costs $${G.penalty} of a $${G.budget} FAAB budget. One team goes each week until two are left, and they meet head to head in week 17 for the title.</p>
     <div class="tiles">
       <div class="tile"><span class="k">Still standing</span>${standing}</div>
-      ${low && !G.final ? `<div class="tile"><span class="k">On the block</span><span class="v">${esc(T[low.team].manager)}</span><span class="s">${f2(low.total)} points${next ? `, ${f2(next.cushion)} behind ${esc(T[next.team].manager)}` : ""}</span></div>` : ""}
-      ${lastW ? `<div class="tile"><span class="k">Last chopped</span><span class="v">${esc(T[lastW.chopped].manager)}</span><span class="s">Week ${lastW.week}, missed by ${f2(lastW.cushion)}</span></div>` : ""}
+      ${low && !G.final ? `<div class="tile"><span class="k">On the block</span><span class="v tn">${esc(T[low.team].team)}</span><span class="s">${esc(T[low.team].manager)} · ${f2(low.total)} points${next ? `, ${f2(next.cushion)} behind ${esc(T[next.team].manager)}` : ""}</span></div>` : ""}
+      ${lastW ? `<div class="tile"><span class="k">Last chopped</span><span class="v tn">${esc(T[lastW.chopped].team)}</span><span class="s">${esc(T[lastW.chopped].manager)} · week ${lastW.week}, missed by ${f2(lastW.cushion)}</span></div>` : ""}
       ${holder ? `<div class="tile"><span class="k">Defending champion</span><span class="v">${esc(holder.champion)}</span><span class="s">${esc(holder.name)}, beat ${esc(holder.runner_up)} in the final</span></div>` : ""}
     </div>
     ${G.final ? "" : `<div class="block"><h2>The chopping block</h2><p class="note">Every team still alive, by season points. The bottom team goes next unless it outscores someone above it this week.</p>${block}</div>`}
@@ -1064,7 +1139,9 @@ async function heroLive() {
 }
 
 function show(tab) {
-  if (!["recap", "preview", "power", "conferences", "robber", "guillotine", "records", "huddle", "commish"].includes(tab)) tab = "recap";
+  if (tab === "conferences") tab = "standings";  // the tab's old name, for saved links
+  if (tab === "preview") luRefresh();  // lineups as they stand on Sleeper now
+  if (!["recap", "preview", "power", "standings", "robber", "guillotine", "records", "huddle", "commish"].includes(tab)) tab = "recap";
   if (tab === "commish" && !commishOpen) { askPin(); return; }
   if (tab === "huddle") huddleLoad();  // fresh comments and votes each time the tab opens
   document.querySelectorAll("section.panel").forEach(p => p.hidden = p.id !== tab);

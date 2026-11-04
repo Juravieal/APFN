@@ -263,6 +263,38 @@ def preview(confs, rob):
     return out
 
 
+def preview_lineups(leagues, week):
+    """Starting lineups for the preview week, for the side-by-side view on the Preview tab.
+
+    Bakes in each team's starters as Sleeper has them at build time, plus a name, injury tag and
+    projection (Sleeper's, in that league's scoring) for every rostered player, so the page can
+    re-fetch lineups from Sleeper and still name anyone moved in from the bench."""
+    path = RAW / "nfl" / f"proj_{STATE['season']}_{week:02d}.json"
+    proj = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    sched = RAW / "nfl" / f"schedule_{STATE['season']}.json"
+    opp = {}
+    for g in json.loads(sched.read_text(encoding="utf-8")) if sched.exists() else []:
+        if g["week"] == week:
+            opp[g["home"]] = "vs " + g["away"]
+            opp[g["away"]] = "@ " + g["home"]
+    players, out = {}, {"week": week, "opp": opp, "leagues": {}, "starters": {}}
+    for lid, lg in leagues.items():
+        scoring = lg["league"]["scoring_settings"]
+        slots = [s for s in lg["league"]["roster_positions"] if s not in ("BN", "IR", "TAXI")]
+        pts = {}
+        for r in lg["rosters"]:
+            for pid in r.get("players") or []:
+                p = PLAYERS.get(pid, {})
+                players.setdefault(pid, [pname(pid), p.get("position") or ("DEF" if not pid.isdigit() else ""),
+                                         p.get("team") or (pid if not pid.isdigit() else "FA"), p.get("injury_status") or ""])
+                pts[pid] = round(sum((proj.get(pid) or {}).get(k, 0) * v for k, v in scoring.items()), 1)
+        out["leagues"][lid] = {"slots": slots, "proj": pts}
+        for rid, m in (lg["matchups"].get(week) or {}).items():
+            out["starters"][f"{lid}:{rid}"] = m.get("starters") or []
+    out["players"] = players
+    return out
+
+
 def league_lines(confs, week):
     """Cross-conference league games for a week, scored with each team's points from its own
     conference matchup that week."""
@@ -735,6 +767,7 @@ def compute():
                                  "guillotine": gw})
     data["league"] = league_season(confs)
     data["preview"] = preview(confs, rob)
+    data["preview"]["lineups"] = preview_lineups({**confs, ROBBER: rob}, WEEK_NOW)
     data["robber"]["waiver_rule"] = robber_waivers(rob)
     data["commish"] = commissioner([(CONFERENCES[lid], lg) for lid, lg in confs.items()] + [("Robber", rob)],
                                    data["robber"])
