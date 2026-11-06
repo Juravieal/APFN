@@ -149,6 +149,8 @@ details.lu > summary:focus-visible { outline: 2px solid var(--accent); outline-o
 .lu-r .flag, .lu-r .pl .flag { color: var(--loss); font-weight: 700; }
 .lu-r.h .tn.r { text-align: right; }
 .lu-r .ab { display: none; }
+.lu-r .gs { color: var(--fg2); font-weight: 600; }
+.lu-r .gs.on { color: var(--win); }
 .lu-note { padding: 6px 10px 8px; color: var(--fg3); font-size: 12px; border-top: 1px solid var(--line); }
 @media (max-width: 560px) {
   .lu-r { grid-template-columns: minmax(0, 1fr) 3em 2.9em 3em minmax(0, 1fr); padding: 6px 6px; gap: 0 2px; }
@@ -520,33 +522,48 @@ function luSide(key) {
     const pid = ids[i];
     if (!pid || pid === "0") return { slot, empty: true, proj: 0 };
     const p = LU.players[pid] || ["New pickup", "", "", ""];
-    return { slot, name: p[0], pos: p[1], nfl: p[2], inj: INJ[p[3]] || "", proj: L.proj[pid] ?? 0, opp: LU.opp[p[2]] };
+    const live = LU.live ? (LU.live.pts[key] || {})[pid] : undefined;
+    return { slot, name: p[0], pos: p[1], nfl: p[2], inj: INJ[p[3]] || "", proj: L.proj[pid] ?? 0, opp: LU.opp[p[2]],
+             pts: live ?? 0, game: LU.live ? LU.live.games[p[2]] : undefined };
   });
 }
+// Once the week's first NFL game kicks off, the lineups show Sleeper's live points instead of projections.
+const GAME = { in_game: "Live", complete: "Final" };
 function lineupHTML(ka, kb) {
-  const a = luSide(ka), b = luSide(kb), sum = xs => xs.reduce((t, x) => t + x.proj, 0);
+  const a = luSide(ka), b = luSide(kb), on = !!LU.live, v = x => on ? x.pts : x.proj, sum = xs => xs.reduce((t, x) => t + v(x), 0);
+  const where = x => GAME[x.game] ? `<b class="gs${x.game === "in_game" ? " on" : ""}">${GAME[x.game]}</b>` : x.opp ? esc(x.opp) + (on ? ` · proj ${f1(x.proj)}` : "") : x.nfl ? '<b class="flag">BYE</b>' : "";
   const pl = (x, right) => x.empty ? `<div class="pl${right ? " r" : ""}"><b class="flag">Empty</b><span>&nbsp;</span></div>`
     : `<div class="pl${right ? " r" : ""}"><b><span class="fn">${esc(x.name)}</span><span class="ab">${esc(abbr(x.name, x.pos))}</span></b>`
-      + `<span>${esc(x.pos)}${x.nfl && x.pos !== "DEF" ? " · " + esc(x.nfl) : ""} ${x.opp ? esc(x.opp) : x.nfl ? '<b class="flag">BYE</b>' : ""}${x.inj ? ` <b class="flag">${x.inj}</b>` : ""}</span></div>`;
-  const pj = (x, y, right) => `<span class="pj${right ? " r" : ""}${x.proj > y.proj ? " hi" : ""}">${x.empty ? "–" : f1(x.proj)}</span>`;
-  const ta = sum(a), tb = sum(b), time = luAsOf ? luAsOf.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
-  return `<div class="lu-r h"><span class="tn">${esc(T[ka].team)}</span><span class="pj">Proj</span><span></span><span class="pj r">Proj</span><span class="tn r">${esc(T[kb].team)}</span></div>`
+      + `<span>${esc(x.pos)}${x.nfl && x.pos !== "DEF" ? " · " + esc(x.nfl) : ""} ${where(x)}${x.inj ? ` <b class="flag">${x.inj}</b>` : ""}</span></div>`;
+  const pj = (x, y, right) => `<span class="pj${right ? " r" : ""}${v(x) > v(y) ? " hi" : ""}">${x.empty ? "–" : on ? f2(x.pts) : f1(x.proj)}</span>`;
+  const tot = (k, xs) => on && LU.live.total[k] != null ? LU.live.total[k] : sum(xs);
+  const ta = tot(ka, a), tb = tot(kb, b), col = on ? "Pts" : "Proj", fx = on ? f2 : f1, time = luAsOf ? luAsOf.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
+  return `<div class="lu-r h"><span class="tn">${esc(T[ka].team)}</span><span class="pj">${col}</span><span></span><span class="pj r">${col}</span><span class="tn r">${esc(T[kb].team)}</span></div>`
     + a.map((x, i) => `<div class="lu-r">${pl(x)}${pj(x, b[i])}<span class="slot">${esc(SLOT[x.slot] || x.slot)}</span>${pj(b[i], x, true)}${pl(b[i], true)}</div>`).join("")
-    + `<div class="lu-r t"><span>Total</span><span class="pj${ta > tb ? " hi" : ""}">${f1(ta)}</span><span></span><span class="pj r${tb > ta ? " hi" : ""}">${f1(tb)}</span><span class="pl r">Total</span></div>`
-    + `<p class="lu-note">Starters as set on Sleeper${time ? `, checked at ${time}` : " when the site was last built"}. Projections are Sleeper's, in this league's scoring.</p>`;
+    + `<div class="lu-r t"><span>Total</span><span class="pj${ta > tb ? " hi" : ""}">${fx(ta)}</span><span></span><span class="pj r${tb > ta ? " hi" : ""}">${fx(tb)}</span><span class="pl r">Total</span></div>`
+    + (on ? `<p class="lu-note">Live points from Sleeper, in this league's scoring${time ? `, updated ${time}` : ""}. Players yet to play show their projection under their name.</p>`
+          : `<p class="lu-note">Starters as set on Sleeper${time ? `, checked at ${time}` : " when the site was last built"}. Projections are Sleeper's, in this league's scoring.</p>`);
 }
 const lineupRow = (g, cols) => LU && LU.starters[g[0].key] && LU.starters[g[1].key]
   ? `<tr class="lu-row"><td colspan="${cols}"><details class="lu"${g[0].gotw ? " open" : ""}><summary>Starting lineups</summary><div class="lu-body" data-a="${g[0].key}" data-b="${g[1].key}">${lineupHTML(g[0].key, g[1].key)}</div></details></td></tr>` : "";
 async function luRefresh() {
-  if (!LU || luRefresh.busy || (luAsOf && Date.now() - luAsOf < 60000)) return;
+  if (!LU || luRefresh.busy || (luAsOf && Date.now() - luAsOf < 50000)) return;
   luRefresh.busy = true;
   try {
+    const sched = await fetch(`https://api.sleeper.com/schedule/nfl/regular/${D.season}`).then(r => r.ok ? r.json() : []).catch(() => []);
+    const wk = sched.filter(g => g.week === LU.week), started = wk.some(g => g.status !== "pre_game");
+    const games = {};
+    wk.forEach(g => { games[g.home] = g.status; games[g.away] = g.status; });
     const got = await Promise.all(Object.keys(LU.leagues).map(async lid => {
       const r = await fetch(`https://api.sleeper.app/v1/league/${lid}/matchups/${LU.week}`);
       if (!r.ok) throw new Error(r.status);
       return [lid, await r.json()];
     }));
     got.forEach(([lid, ms]) => ms.forEach(m => { if (m.starters) LU.starters[`${lid}:${m.roster_id}`] = m.starters; }));
+    if (started) {
+      LU.live = { games, pts: {}, total: {}, final: wk.every(g => g.status === "complete") };
+      got.forEach(([lid, ms]) => ms.forEach(m => { LU.live.pts[`${lid}:${m.roster_id}`] = m.players_points || {}; LU.live.total[`${lid}:${m.roster_id}`] = m.points ?? null; }));
+    }
     luAsOf = new Date();
     document.querySelectorAll(".lu-body").forEach(el => el.innerHTML = lineupHTML(el.dataset.a, el.dataset.b));
   } catch (_) { /* Sleeper unreachable: keep the lineups from the build */ }
@@ -1156,6 +1173,8 @@ document.getElementById("tabs").addEventListener("click", e => {
 renderHero();
 heroLive();
 heroTimer = setInterval(heroLive, 60000);
+// Keep the Preview tab's lineups current while games are on.
+setInterval(() => { if (LU && !(LU.live && LU.live.final) && !document.getElementById("preview").hidden) luRefresh(); }, 60000);
 document.getElementById("foot").textContent = "Scores and rosters come from Sleeper's public API. Rankings, luck and robbery figures are calculated here and are not official league standings.";
 renderRecap(); renderPreview(); renderPower(); renderConferences(); renderRobber(); renderGuillotine(); renderRecords(); renderHuddle();
 if (commishOpen) { renderCommish(); document.getElementById("tab-commish").classList.remove("locked"); }
