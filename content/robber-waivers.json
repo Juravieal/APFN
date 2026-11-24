@@ -216,6 +216,33 @@
         "Ghaztyz",
         "adamgum"
       ]
+    },
+    "11": {
+      "source": "automatic",
+      "before": [
+        "cartercole",
+        "vpettijohnjr",
+        "ArmedRodgery21",
+        "kbartelt07",
+        "queens22",
+        "thatguyPegleg",
+        "Juravieal",
+        "adamgum",
+        "Dfiasco0",
+        "Ghaztyz"
+      ],
+      "after": [
+        "cartercole",
+        "vpettijohnjr",
+        "Juravieal",
+        "Dfiasco0",
+        "Ghaztyz",
+        "ArmedRodgery21",
+        "kbartelt07",
+        "queens22",
+        "thatguyPegleg",
+        "adamgum"
+      ]
     }
   }
 }
